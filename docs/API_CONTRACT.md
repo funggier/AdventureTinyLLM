@@ -19,6 +19,12 @@ Request: agent_id (string), observation (32 finite numbers following src/adventu
 
 Server returns a random unique action_id per decision and stores the observation plus action heads for up to 20 seconds (48 outstanding decisions per agent). The client MUST pass the exact action_id for the responsible physical action in /experience. A 32-step temporal context is held in process RAM. Return value is a model prediction, not proof of quality.
 
+## POST /observe — zero-reward information intake
+
+Request: `{"agent_id":"tiny-unity","kind":"sign","source":"Camp safety board","text":"Duskberry is poisonous"}`. The server stores at most 24 sign observations per agent in bounded process memory, returning `{"accepted":true,"kind":"sign","reward":0,"model_updated":false,"observed_count":1}`.
+
+**No neural learning from merely reading:** this endpoint does not consume action IDs, update policy weights, send an RL experience, or perform language understanding. The 95k-parameter numeric policy cannot reason about the natural-language sign text. Data is not sent to or from Ollama. This observation buffer resets on `/reset`.
+
 ## POST /experience
 
 Enabled **only** when ADVENTURE_TINY_ONLINE_TRAIN=1. JSON body: agent_id, action_id, reward (finite float), credit (move / interact / answer), navigation_override (bool), event (short description). Unity sends it only when an actual interaction updates game stats **and the HUD has Train in Game selected**. The server consumes exactly the matched decision once, computes an actor-critic gradient on the selected action head and checkpoints after each accepted update. It refuses unknown, expired, repeated IDs and navigation-assisted interventions.
@@ -30,6 +36,8 @@ Response: accepted, online_updates, loss, reward, or accepted=false with reason 
 ## POST /reset
 
 Body agent_id. Clears that agent's short-term context and outstanding last decision. Does not reset the game or model weights.
+
+Survival extension: Unity supplies the nearest **visible monster** as primary observation when present, with index 30 set to `-1` for a hostile (otherwise `0` or `+1` for NPC facing). It retains the numeric 32-feature network size but introduces new semantics, so comparisons against the original synthetic trainer must be evaluated again. Kill reward, monster damage, HP/food effects and other scores are computed after interactions by Unity; only one chosen action head receives credit.
 
 ## Not implemented
 

@@ -81,6 +81,7 @@ GET /health reports model training status and online updates; POST /act expects 
 - [v0.1.0 release notes](docs/releases/v0.1.0.md)
 - [First real training & Unity experiment](docs/EXPERIMENTS-2026-11-01.md)
 - [How to train directly inside the Unity game (Thai)](docs/REAL_GAME_TRAINING_TH.md)
+- [Survival combat, berries, and sign-reading reward rules](docs/SURVIVAL_COMBAT_SIGN_TH.md)
 
 Release artifacts use the names `AdventureTinyLLM-V0.1.0-Release.zip`, `AdventureTinyLLM-V0.1.0-Document.zip`, and `SHA256SUMS.txt`. The `scripts/package_release.py` helper packages only files committed in Git, with reproducible ZIP metadata.
 

@@ -56,6 +56,10 @@ Regression: ทดสอบบังคับให้ World Runtime หาย�
 
 ทดสอบ Unity EditMode 5/5 รายการผ่าน ครอบคลุมลดค่า, หยุดทันที, ไม่ติดลบ, ความสม่ำเสมอของเวลาจำลอง และความถูกต้องของ Outcome Deltas
 
+## โหมดผจญภัยเอาชีวิตรอด / อ่านป้าย / มอนสเตอร์
+
+ดูเอกสาร [Survival Combat and Sign Reading](SURVIVAL_COMBAT_SIGN_TH.md) สำหรับ Reward ที่ให้ความสำคัญกับ HP สูงสุด ความเบื่อมีผลน้อย มอนสเตอร์ไล่โจมตีและถูกฆ่าได้ รวมถึงการส่งข้อความป้ายเข้า Tiny โดยให้ Reward 0 และไม่ฝึก Neural Weights จากการอ่านอย่างเดียว
+
 ## Action attribution
 
 - /act คืน action_id เฉพาะแต่ละคำสั่ง

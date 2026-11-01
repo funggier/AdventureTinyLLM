@@ -45,6 +45,9 @@ if ONLINE_OPTIMIZER is not None and TRAINING_METADATA is not None:
         PRIOR_ONLINE_UPDATES = int(TRAINING_METADATA["metrics"].get("online_updates", 0))
 ONLINE_UPDATES = 0
 OBSERVED_REWARDS: list[float] = []
+# Text observations are explicitly NOT fed into the numeric policy or optimizer.
+# Keep a bounded diagnostic record so Tiny can receive signs with zero reward.
+TEXT_OBSERVATIONS: dict[str, deque[dict[str, str]]] = {}
 HISTORIES: dict[str, deque[list[float]]] = {}
 MAX_AGENTS = 64
 MAX_DECISIONS_PER_AGENT = 48
@@ -71,6 +74,13 @@ class ActRequest(BaseModel):
 
 class ResetRequest(BaseModel):
     agent_id: str = Field(min_length=1, max_length=100)
+
+
+class ObserveRequest(BaseModel):
+    agent_id: str = Field(min_length=1, max_length=100)
+    kind: str = Field(default="sign", pattern="^sign$")
+    source: str = Field(min_length=1, max_length=120)
+    text: str = Field(min_length=1, max_length=512)
 
 
 class ExperienceRequest(BaseModel):
@@ -103,6 +113,7 @@ def health() -> dict:
         "training_steps": BASE_STEPS + ONLINE_UPDATES,
         "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES,
         "observed_events": len(OBSERVED_REWARDS),
+        "text_observations": sum(len(records) for records in TEXT_OBSERVATIONS.values()),
         "checkpoint": CHECKPOINT_PATH or None,
         "action_protocol": "explicit-action-id-v2",
         "action_ttl_seconds": ACTION_TTL_SECONDS,
@@ -142,6 +153,19 @@ def act(req: ActRequest) -> dict:
     response["action_id"] = action_id
     response["model_trained"] = bool(TRAINING_METADATA or ONLINE_UPDATES > 0)
     return response
+
+
+@app.post("/observe")
+def observe(req: ObserveRequest) -> dict:
+    # Information intake != semantic analysis or positive training reward.
+    # Does not consume action IDs, alter weights, or call the optimizer.
+    with LOCK:
+        if req.agent_id not in TEXT_OBSERVATIONS and len(TEXT_OBSERVATIONS) >= MAX_AGENTS:
+            raise HTTPException(status_code=429, detail="agent observation capacity reached")
+        records = TEXT_OBSERVATIONS.setdefault(req.agent_id, deque(maxlen=24))
+        records.append({"kind": req.kind, "source": req.source, "text": req.text})
+        return {"accepted": True, "kind": req.kind, "reward": 0.0,
+                "model_updated": False, "observed_count": len(records)}
 
 
 @app.post("/experience")
@@ -186,4 +210,5 @@ def reset(req: ResetRequest) -> dict:
     with LOCK:
         existed = HISTORIES.pop(req.agent_id, None) is not None
         DECISIONS.pop(req.agent_id, None)
+        TEXT_OBSERVATIONS.pop(req.agent_id, None)
     return {"agent_id": req.agent_id, "reset": existed}
