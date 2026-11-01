@@ -35,6 +35,28 @@ def test_explicit_action_id_replay_reset_and_agent_isolation(tmp_path, monkeypat
         "agent_id":"credit-01","action_id":third["action_id"],"reward":1
     }).json()["reason"] == "unknown_or_consumed_action_id"
 
+def test_negative_idle_boredom_reward_updates_only_issued_move_action(tmp_path, monkeypatch):
+    """Stalling is a negative move outcome, not an invented or repeated credit."""
+    client = TestClient(api.app)
+    monkeypatch.setattr(api, "ONLINE_ENABLED", True)
+    monkeypatch.setattr(api, "ONLINE_OPTIMIZER", torch.optim.AdamW(api.MODEL.parameters(), lr=1e-5))
+    monkeypatch.setattr(api, "ONLINE_OUTPUT", str(tmp_path / "idle.pt"))
+    request = {"agent_id": "idle-qa", "observation": [0.0] * 32, "deterministic": False}
+    action = client.post("/act", json=request).json()
+    payload = {"agent_id": "idle-qa", "action_id": action["action_id"],
+               "credit": "move", "reward": -0.008,
+               "event": "source=Self action=PassiveBoredom at applied_action_end"}
+    result = client.post("/experience", json=payload)
+    assert result.status_code == 200
+    assert result.json()["accepted"] is True
+    assert result.json()["reward"] < 0
+    assert (tmp_path / "idle.pt").exists()
+    replay = client.post("/experience", json=payload).json()
+    assert replay["accepted"] is False
+    assert replay["reason"] == "unknown_or_consumed_action_id"
+    client.post("/reset", json={"agent_id": "idle-qa"})
+
+
 def test_action_expiry_and_credit_validation(monkeypatch):
     client = TestClient(api.app)
     monkeypatch.setattr(api, "ONLINE_ENABLED", True)
