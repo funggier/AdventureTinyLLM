@@ -65,6 +65,9 @@ The existing Unity Ollama adapter uses a different prompt/endpoint. A dedicated 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap and qualification](docs/ROADMAP.md)
 - [REST API contract](docs/API_CONTRACT.md)
+- [v0.1.0 release notes](docs/releases/v0.1.0.md)
+
+Release artifacts use the names `AdventureTinyLLM-V0.1.0-Release.zip`, `AdventureTinyLLM-V0.1.0-Document.zip`, and `SHA256SUMS.txt`. The `scripts/package_release.py` helper packages only files committed in Git, with reproducible ZIP metadata.
 
 ## License
 
