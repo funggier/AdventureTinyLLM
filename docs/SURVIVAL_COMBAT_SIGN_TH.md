@@ -9,7 +9,7 @@ Date: 2026-11-02. Experimental Unity gameplay, not proof that the neural policy 
 - Attack is the existing INTERACT action (Manual E, Ollama JSON interact=true, Tiny interact head); player must face and approach the monster.
 - Survival objective: defeat three monsters. HP zero returns the player to camp.
 - Six Amberberry pickup sites (+12 HP), six Duskberry sites (-32 HP), and five physical information signs. The visible category of both berries is simply Berry; the hidden poisonous/safe enum is not sent in the vision report.
-- Current berries are automatic proximity pickups. Weapons, inventory, stamina, hunger and enemy pathfinding are future work.
+- **Berries are intentionally eaten with E / interact** when close and facing the fruit; walking through them does not auto-consume. Other non-food pickups still trigger on touch. This permits AI to read warnings and decide NOT to eat poisonous fruit. Weapons, inventory, stamina, hunger and enemy pathfinding are future work.
 
 ## Reading signs
 
@@ -17,7 +17,7 @@ Ollama qwen3.5:4b receives legible sign text only if the board is within its sig
 
 AdventureTinyLLM is a 95k-parameter numeric Transformer without a language model tokenizer or text understanding. In Tiny mode, physically reading a sign sends its name and text to POST /observe. It is stored in a bounded diagnostic list and receives reward=0, model_updated=false. No optimizer step occurs. It does not receive Ollama memory or analysis.
 
-The 32-feature numeric observation shape is unchanged. Unity now uses feature 30=-1 if a monster is visible and prioritizes its bearing; 0 for no interaction target, +1 when correctly facing an NPC. This is a semantic extension, so older policies require new evaluation/training for this world.
+The 32-feature numeric observation shape is unchanged. Unity now uses feature 30=-1 if a **nearby** monster is visible (within 12 units) and prioritizes its bearing; otherwise it uses the nearest visible entity, with feature 30=0 for no interaction target or +1 when correctly facing an NPC. For an observed berry, feature 10=.5 indicates a berry while feature 11 carries the **actual visible material tint (red-minus-blue)**; feature 13=.5 for a visible sign. These are visual observations, not the hidden poisonous/safe enum. The Ollama report similarly describes the fruit as gold- or purple-toned from its material. This is a semantic extension, so older policies require new evaluation/training for this world.
 
 ## Post-action survival rewards
 
@@ -37,6 +37,8 @@ Only actual game outcomes with matched one-use action IDs can update the model i
 
 ## Tests and limitations
 
-Python: 17/17 tests passed including zero-reward sign intake. Unity EditMode: 10/10 passed (food HP, combat outcomes, HP vs boredom weighting, no reward from signs). Unity Play: 8 monsters, 12 berries, 5 signs, 17 NPCs, 16 terrain chunks. Monster chase and fatal attack were observed; player melee damage and a monster kill were verified. Local Ollama classified the warning sign correctly. Tiny /observe processed an actual sign-reading event from Unity with unchanged training-step count.
+Python: 17/17 tests passed including zero-reward sign intake. Unity EditMode: 11/11 passed (food HP, deliberate berry consumption, combat outcomes, HP vs boredom weighting, no reward from signs). Unity Play: 8 monsters, 12 berries, 5 signs, 17 NPCs, 16 terrain chunks. Monster chase and fatal attack were observed; player melee damage and a monster kill were verified. Local Ollama classified the warning sign correctly. Tiny /observe processed an actual sign-reading event from Unity with unchanged training-step count.
 
-Future: survival stamina, hunger, realistic enemy obstacle navigation, real inventory/eating choices, combat animation/equipment, PPO and longer-term experience assignment.
+Live interaction follow-up: approaching an Amberberry caused **no auto-consumption**; an explicit interact healed HP by 12. Choosing to eat a Duskberry damaged HP by 32 and produced reward -1.278. Nearby signs may be read first when using interact; sign reads have zero reward. These are smoke tests, not model learning evidence.
+
+Future: survival stamina, hunger, realistic enemy obstacle navigation, inventory/equipment, combat animation, PPO and longer-term experience assignment.

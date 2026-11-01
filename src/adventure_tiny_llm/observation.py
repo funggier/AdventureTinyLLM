@@ -6,8 +6,10 @@ from previous *observed* interactions; no game reward-rule lookup is supplied.
 from __future__ import annotations
 from .contracts import validate_observation
 
-# Numeric schema extension: feature 30 = -1 when a hostile is visible,
-# 0 for no interaction target, or +1 when correctly facing an NPC.
+# Numeric schema extension: 30=-1 for a visible hostile within 12 units,
+# 0 for no interaction target, +1 for correctly facing an NPC. For berries,
+# feature 10=.5 and feature 11=observed red-minus-blue material tint;
+# feature 13=.5 means a visible sign (not its semantic meaning).
 # Retains the 32-dimensional model architecture but not identical semantics
 # to earlier gameplay; re-evaluate/retrain policies after enabling monsters.
 FEATURES = (

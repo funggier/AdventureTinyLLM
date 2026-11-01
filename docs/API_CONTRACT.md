@@ -37,7 +37,7 @@ Response: accepted, online_updates, loss, reward, or accepted=false with reason 
 
 Body agent_id. Clears that agent's short-term context and outstanding last decision. Does not reset the game or model weights.
 
-Survival extension: Unity supplies the nearest **visible monster** as primary observation when present, with index 30 set to `-1` for a hostile (otherwise `0` or `+1` for NPC facing). It retains the numeric 32-feature network size but introduces new semantics, so comparisons against the original synthetic trainer must be evaluated again. Kill reward, monster damage, HP/food effects and other scores are computed after interactions by Unity; only one chosen action head receives credit.
+Survival extension: Unity supplies the nearest **visible monster within 12 units** as primary observation when present, with index 30 set to `-1` for a nearby hostile (otherwise `0` or `+1` for NPC facing). It retains the numeric 32-feature network size but introduces new semantics, so comparisons against the original synthetic trainer must be evaluated again. Kill reward, monster damage, HP/food effects and other scores are computed after interactions by Unity; only one chosen action head receives credit.
 
 ## Not implemented
 

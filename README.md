@@ -27,7 +27,7 @@ This is **not a fork** of those projects and does not import their weights, corp
 
 ## Current state
 
-**Native RL and Unity integration prototype (post-v0.1.0).** The Transformer now supports random-origin actor-critic training in a small synthetic 2D arena, safe checkpoints, a real Unity Tiny AI controller through REST, and optional weight updates from *observed* game outcomes. This is **not PPO**, not language pretraining, and not demonstrated full-game competence. Ollama remains fully independent. See [first measured experiment](docs/EXPERIMENTS-2026-11-01.md).
+**Native RL and Unity integration prototype (post-v0.1.0).** The Transformer now supports random-origin actor-critic training in a small synthetic 2D arena, safe checkpoints, a real Unity Tiny AI controller through REST, and optional weight updates from *observed* game outcomes. This is **not PPO**, not language pretraining, and not demonstrated full-game competence. The survival test world now includes hostile wildlife and fruit requiring an explicit eat decision; previous checkpoints must be re-evaluated under the extended observation semantics. Ollama remains fully independent. See [first measured experiment](docs/EXPERIMENTS-2026-11-01.md).
 
 ### Suggested tiny configuration
 
@@ -81,6 +81,7 @@ GET /health reports model training status and online updates; POST /act expects 
 - [v0.1.0 release notes](docs/releases/v0.1.0.md)
 - [First real training & Unity experiment](docs/EXPERIMENTS-2026-11-01.md)
 - [How to train directly inside the Unity game (Thai)](docs/REAL_GAME_TRAINING_TH.md)
+- [Survival combat, food choices, monster encounters and readable signs (Thai/English)](docs/SURVIVAL_COMBAT_SIGN_TH.md)
 - [Survival combat, berries, and sign-reading reward rules](docs/SURVIVAL_COMBAT_SIGN_TH.md)
 
 Release artifacts use the names `AdventureTinyLLM-V0.1.0-Release.zip`, `AdventureTinyLLM-V0.1.0-Document.zip`, and `SHA256SUMS.txt`. The `scripts/package_release.py` helper packages only files committed in Git, with reproducible ZIP metadata.
