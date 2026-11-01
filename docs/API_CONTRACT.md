@@ -19,6 +19,10 @@ Request: agent_id (string), observation (32 finite numbers following src/adventu
 
 Server returns a random unique action_id per decision and stores the observation plus action heads for up to 20 seconds (48 outstanding decisions per agent). The client MUST pass the exact action_id for the responsible physical action in /experience. A 32-step temporal context is held in process RAM. Return value is a model prediction, not proof of quality.
 
+## Survival feature migration: Happiness and no-progress reward
+
+Feature 5 now represents normalized **Happiness** (instead of Relationship); feature 22 represents the last observed Happiness delta. Observation dimensionality remains 32, so old checkpoint weights can load but their previous feature meanings have changed and policies require new evaluation. The Unity environment now counts meaningful outcomes: useful pickups/eating, genuine NPC conversations or new knowledge, and monster hits/kills. After 12 game seconds without such progress, Happiness decays slowly even when the avatar wiggles or walks. `PassiveNoProgress` emits a small negative move-head `/experience` for an actual issued `action_id`; reading a sign remains zero-reward and skipped for this penalty. It never rewards mere movement.
+
 ## POST /observe — zero-reward information intake
 
 Request: `{"agent_id":"tiny-unity","kind":"sign","source":"Camp safety board","text":"Duskberry is poisonous"}`. The server stores at most 24 sign observations per agent in bounded process memory, returning `{"accepted":true,"kind":"sign","reward":0,"model_updated":false,"observed_count":1}`.
@@ -29,7 +33,7 @@ Request: `{"agent_id":"tiny-unity","kind":"sign","source":"Camp safety board","t
 
 Enabled **only** when ADVENTURE_TINY_ONLINE_TRAIN=1. JSON body: agent_id, action_id, reward (finite float), credit (move / interact / answer), navigation_override (bool), event (short description). Unity sends it only when an actual interaction updates game stats **and the HUD has Train in Game selected**. The server consumes exactly the matched decision once, computes an actor-critic gradient on the selected action head and checkpoints after each accepted update. It refuses unknown, expired, repeated IDs and navigation-assisted interventions.
 
-Response: accepted, online_updates, loss, reward, or accepted=false with reason if no last decision exists. With training disabled returns HTTP 403. The Game's weighted reward follows its measured HP, Knowledge, Relationship, and Boredom deltas; secret game rules are NOT passed as observations.
+Response: accepted, online_updates, loss, reward, or accepted=false with reason if no last decision exists. With training disabled returns HTTP 403. The Game's weighted reward follows its measured HP, Knowledge, Happiness, and Boredom deltas; secret game rules are NOT passed as observations.
 
 **Current temporal limitation:** v2 action_id prevents arbitrary last-action matching, but Unity still attributes a collision to the most recently applied move, rather than a full physical action trajectory; outcomes delayed across several commands may still require multi-step trace/episode IDs. The protocol is a safety improvement, not proof of perfect causal assignment.
 

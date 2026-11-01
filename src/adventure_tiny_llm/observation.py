@@ -10,15 +10,17 @@ from .contracts import validate_observation
 # 0 for no interaction target, +1 for correctly facing an NPC. For berries,
 # feature 10=.5 and feature 11=observed red-minus-blue material tint;
 # feature 13=.5 means a visible sign (not its semantic meaning).
+# Feature 5/22 now mean Happiness, not Relationship. Old checkpoints can
+# load but MUST be re-evaluated since these inputs changed meaning.
 # Retains the 32-dimensional model architecture but not identical semantics
 # to earlier gameplay; re-evaluate/retrain policies after enabling monsters.
 FEATURES = (
-    "x_norm", "z_norm", "y_norm", "health", "knowledge", "relationship", "boredom",
+    "x_norm", "z_norm", "y_norm", "health", "knowledge", "happiness", "boredom",
     "facing_x", "facing_z", "dialogue_open",
     "seen_herb", "seen_thorn", "seen_lore", "seen_npc",
     "nearest_bearing_x", "nearest_bearing_z", "nearest_distance_norm",
     "nearest_x_norm", "nearest_z_norm", "visible_count_norm",
-    "observed_hp_delta", "observed_knowledge_delta", "observed_relationship_delta",
+    "observed_hp_delta", "observed_knowledge_delta", "observed_happiness_delta",
     "observed_boredom_delta", "west_edge", "east_edge", "south_edge", "north_edge",
     "time_norm", "discoveries_norm", "npc_facing_or_hostile", "constant_one",
 )

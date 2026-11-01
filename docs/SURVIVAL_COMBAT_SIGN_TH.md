@@ -26,7 +26,7 @@ Health is the most important signal, boredom the least important.
 - HP lost: delta_HP / 100 x 4.0 (negative).
 - HP regained: delta_HP / 100 x 2.3.
 - Knowledge: delta / 100 x 0.45.
-- Relationship: delta / 100 x 0.25.
+- Happiness: delta / 100 x 0.25. Replaces Relationship; rewarded by food, NPC conversations and defeating monsters. Negative no-progress updates are separate from event rewards.
 - Boredom: -delta / 100 x 0.02.
 - Successful strike: +0.08.
 - Killing a monster: +1.00.

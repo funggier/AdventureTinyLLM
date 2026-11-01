@@ -80,7 +80,7 @@ GET /health reports model training status and online updates; POST /act expects 
 - [REST API contract](docs/API_CONTRACT.md)
 - [v0.1.0 release notes](docs/releases/v0.1.0.md)
 - [First real training & Unity experiment](docs/EXPERIMENTS-2026-11-01.md)
-- [How to train directly inside the Unity game (Thai)](docs/REAL_GAME_TRAINING_TH.md)
+- [How to train directly inside the Unity game (Thai)](docs/REAL_GAME_TRAINING_TH.md) — now includes Happiness (replacing Relationship) and anti-wiggle no-progress penalties.
 - [Survival combat, food choices, monster encounters and readable signs (Thai/English)](docs/SURVIVAL_COMBAT_SIGN_TH.md)
 - [Survival combat, berries, and sign-reading reward rules](docs/SURVIVAL_COMBAT_SIGN_TH.md)
 
