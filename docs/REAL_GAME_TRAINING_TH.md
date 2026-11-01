@@ -30,6 +30,14 @@ HUD แสดง **Measured sim (x real), actions/s, API latency (ms/request) �
 
 start_api.ps1 เลือก checkpoints/tiny-unity-online.pt ก่อน หากมี แล้วจึง fallback ไป checkpoints/tiny-v1.pt; เมื่อเปิด -EnableOnline จะบันทึก Checkpoint จากเหตุการณ์เกมจริงที่ checkpoints/tiny-unity-online.pt เพื่อ Resume ได้
 
+## การกระจายจุดฝึก และความคงทนของ Terrain (AIAdventureRPG)
+
+เกม Unity มีจุดฝึกเดิม 11 จุดและ NPC เดิม 3 คน และล่าสุดเพิ่มการสร้างจุดฝึกแบบกระจายเชิงพื้นที่ (8×8 โซน ควบคุมด้วย Seed) ที่ตรวจระดับพื้นและหลบน้ำ/ภูมิประเทศชัน พร้อมเว้นระยะห่างจากต้นไม้ หินและจุดเกิด เมื่อใช้แผนที่เริ่มต้น 64×64: **ไอเทม 95 จุด (เพิ่ม 84) และ NPC 17 คน (เพิ่ม 14)** ครอบคลุม **63/64 โซน**; ไอเทมมีสมุนไพร หนาม หินรูน และ NPC สอนหัวข้อต่าง ๆ ผ่านการโต้ตอบปกติ
+
+สาเหตุหนึ่งของพื้นดินหายที่ทำซ้ำได้คือ VoxelTerrainView เรียก Shutdown() ใน OnDisable() แต่ไม่มีการสร้าง Mesh คืนเมื่อเปิดอีกครั้ง ปัจจุบัน AdventureWorld เปิดโหมดรักษา Terrain Mesh เมื่อปิดแสดงผลชั่วคราวและตรวจพบกรณีการแสดงผลหลุดแล้วสร้างกลับจากข้อมูล VoxelWorld เดิม โดยไม่แก้ค่าเริ่มต้นของระบบ CityBuilder ที่ใช้ VoxelTerrainView ร่วมกัน
+
+ทดสอบ: ปิด/เปิด Terrain View ยังคง 16/16 Chunk และบังคับเรียก Shutdown() ระหว่าง Play Mode แล้วระบบฟื้นกลับได้ 16/16 Chunk, ไม่ทำให้ข้อมูลพื้นดินสูญหาย ทดสอบ Train in Game 4x พร้อม NPC/ไอเทมจำนวนมากแล้ว API ไม่ล้มเหลว
+
 ## Action attribution
 
 - /act คืน action_id เฉพาะแต่ละคำสั่ง
