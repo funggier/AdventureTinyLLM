@@ -66,6 +66,8 @@ def update_from_outcome(
     observation_history: torch.Tensor,
     chosen_heads: tuple[int, int, int],
     reward: float,
+    *,
+    credit: str = "move",
 ) -> float:
     """One genuine on-policy-ish actor-critic update from an observed external reward.
 
@@ -77,10 +79,12 @@ def update_from_outcome(
         raise ValueError("reward must be finite")
     model.train()
     move, interact, answer, value = model(observation_history)
-    logits = (move, interact, answer)
-    log_prob = sum(Categorical(logits=head).log_prob(
-        torch.tensor([action], dtype=torch.long))
-        for head, action in zip(logits, chosen_heads))
+    if credit not in ("move", "interact", "answer"):
+        raise ValueError("unknown action head for credit")
+    index = {"move": 0, "interact": 1, "answer": 2}[credit]
+    logits = (move, interact, answer)[index]
+    log_prob = Categorical(logits=logits).log_prob(
+        torch.tensor([chosen_heads[index]], dtype=torch.long))
     target = torch.tensor([float(max(-2, min(2, reward)))], dtype=torch.float32)
     advantage = target - value.detach()
     loss = -(log_prob * advantage).mean() + .5 * (value - target).square().mean()

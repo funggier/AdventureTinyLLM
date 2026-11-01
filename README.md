@@ -68,7 +68,7 @@ To train a numeric navigation policy from scratch manually, run this in the loca
 
 Point ADVENTURE_TINY_CHECKPOINT at checkpoints/tiny-v1.pt to load learned weights. To enable updates from Unity's *actual post-action stat deltas*, set ADVENTURE_TINY_ONLINE_TRAIN=1 and ADVENTURE_TINY_ONLINE_OUTPUT to checkpoints/tiny-unity-online.pt (prefer absolute paths). Start the REST API with uvicorn. Every accepted Unity outcome updates the model and saves an independent online checkpoint; future runs can load that checkpoint to resume weights and optimizer state.
 
-GET /health reports model training status and online updates; POST /act expects 32 numeric features; POST /experience accepts only a post-action observed reward when online training was explicitly enabled; POST /reset clears agent context. See [API contract](docs/API_CONTRACT.md). The Unity scene AdventureValley already has the AdventureTinyController. Press TAB to cycle Manual → Ollama → Tiny; the camera always remains third-person.
+GET /health reports model training status and online updates; POST /act expects 32 numeric features and returns a unique action_id; POST /experience requires that exact issued action_id plus reward and credited action head, rejects replayed/expired IDs, and updates only from real observed effects when online training is explicitly enabled; POST /reset clears agent context. The Unity HUD has separate Train in Game / Evaluate buttons (evaluation is the default). See [API contract](docs/API_CONTRACT.md). The Unity scene AdventureValley already has the AdventureTinyController. Press TAB to cycle Manual → Ollama → Tiny; the camera always remains third-person.
 
 **Important:** The offline training environment is a simplified 2D curriculum. Its improved score must not be confused with measured survival/learning in the full Unity game. This unauthenticated experimental API must run on 127.0.0.1 only.
 
@@ -80,6 +80,7 @@ GET /health reports model training status and online updates; POST /act expects 
 - [REST API contract](docs/API_CONTRACT.md)
 - [v0.1.0 release notes](docs/releases/v0.1.0.md)
 - [First real training & Unity experiment](docs/EXPERIMENTS-2026-11-01.md)
+- [How to train directly inside the Unity game (Thai)](docs/REAL_GAME_TRAINING_TH.md)
 
 Release artifacts use the names `AdventureTinyLLM-V0.1.0-Release.zip`, `AdventureTinyLLM-V0.1.0-Document.zip`, and `SHA256SUMS.txt`. The `scripts/package_release.py` helper packages only files committed in Git, with reproducible ZIP metadata.
 

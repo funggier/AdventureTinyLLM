@@ -1,16 +1,19 @@
-"""Local Transformer inference, optionally updated by *actual* game outcomes.
+"""Loopback Tiny Transformer inference with explicit, one-time action credit.
 
-ADVENTURE_TINY_CHECKPOINT loads a trained policy. Online updates are disabled
-unless ADVENTURE_TINY_ONLINE_TRAIN=1; separate output file avoids modifying the
-qualified offline checkpoint. No Ollama or ML-Agents dependencies.
+An outcome may update weights only when it names an actual issued action ID.
+IDs cannot be reused, cannot survive reset, and expire after a short window.
+Random origin model, independent from Ollama and ML-Agents.
 """
 from __future__ import annotations
 
-from collections import deque
+from collections import OrderedDict, deque
+from dataclasses import dataclass
 from math import isfinite
 import os
 from pathlib import Path
 from threading import Lock
+from time import monotonic
+from uuid import uuid4
 
 import torch
 from fastapi import FastAPI, HTTPException
@@ -36,8 +39,6 @@ ONLINE_OPTIMIZER = torch.optim.AdamW(MODEL.parameters(), lr=2e-5, weight_decay=0
 BASE_STEPS = int(TRAINING_METADATA["optimizer_steps"]) if TRAINING_METADATA else 0
 PRIOR_ONLINE_UPDATES = 0
 if ONLINE_OPTIMIZER is not None and TRAINING_METADATA is not None:
-    # Resume the exact optimizer momentum only from a previously saved Unity
-    # online checkpoint. The synthetic-arena optimizer is intentionally separate.
     if TRAINING_METADATA.get("metrics", {}).get("source") == "Unity observed outcomes":
         saved_payload = torch.load(CHECKPOINT_PATH, map_location="cpu", weights_only=True)
         ONLINE_OPTIMIZER.load_state_dict(saved_payload["optimizer_state"])
@@ -45,10 +46,21 @@ if ONLINE_OPTIMIZER is not None and TRAINING_METADATA is not None:
 ONLINE_UPDATES = 0
 OBSERVED_REWARDS: list[float] = []
 HISTORIES: dict[str, deque[list[float]]] = {}
-DECISIONS: dict[str, tuple[torch.Tensor, tuple[int, int, int]]] = {}
 MAX_AGENTS = 64
+MAX_DECISIONS_PER_AGENT = 48
+ACTION_TTL_SECONDS = 20.0
 LOCK = Lock()
-app = FastAPI(title="AdventureTinyLLM", version="0.2.0", description="Independent Tiny Transformer AI")
+
+
+@dataclass(frozen=True)
+class Decision:
+    history: torch.Tensor
+    heads: tuple[int, int, int]
+    timestamp: float
+
+
+DECISIONS: dict[str, OrderedDict[str, Decision]] = {}
+app = FastAPI(title="AdventureTinyLLM", version="0.2.0", description="Tiny Transformer with explicit action attribution")
 
 
 class ActRequest(BaseModel):
@@ -63,8 +75,20 @@ class ResetRequest(BaseModel):
 
 class ExperienceRequest(BaseModel):
     agent_id: str = Field(min_length=1, max_length=100)
+    action_id: str = Field(min_length=1, max_length=80)
     reward: float
     event: str = Field(default="game outcome", max_length=200)
+    credit: str = Field(default="move", pattern="^(move|interact|answer)$")
+    navigation_override: bool = False
+
+
+def _prune(agent_id: str, now: float) -> None:
+    pending = DECISIONS.setdefault(agent_id, OrderedDict())
+    for key in tuple(pending):
+        if now - pending[key].timestamp > ACTION_TTL_SECONDS:
+            del pending[key]
+    while len(pending) >= MAX_DECISIONS_PER_AGENT:
+        pending.popitem(last=False)
 
 
 @app.get("/health")
@@ -80,6 +104,8 @@ def health() -> dict:
         "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES,
         "observed_events": len(OBSERVED_REWARDS),
         "checkpoint": CHECKPOINT_PATH or None,
+        "action_protocol": "explicit-action-id-v2",
+        "action_ttl_seconds": ACTION_TTL_SECONDS,
         "seed": CONFIG.seed,
         "observation_size": CONFIG.observation_size,
         "max_context": CONFIG.max_context,
@@ -102,13 +128,18 @@ def act(req: ActRequest) -> dict:
         x = torch.tensor(list(history), dtype=torch.float32).unsqueeze(0)
         with torch.inference_mode():
             move, interact, answer, value = MODEL(x)
+
             def choose(logits: torch.Tensor) -> int:
                 if req.deterministic:
                     return int(logits.argmax(-1).item())
                 return int(torch.distributions.Categorical(logits=logits).sample().item())
+
             indices = choose(move), choose(interact), choose(answer)
             response = decode_action(*indices, value=float(value.item())).to_dict()
-        DECISIONS[req.agent_id] = (x.detach().clone(), indices)
+        action_id = uuid4().hex
+        _prune(req.agent_id, monotonic())
+        DECISIONS[req.agent_id][action_id] = Decision(x.detach().clone(), indices, monotonic())
+    response["action_id"] = action_id
     response["model_trained"] = bool(TRAINING_METADATA or ONLINE_UPDATES > 0)
     return response
 
@@ -121,24 +152,32 @@ def experience(req: ExperienceRequest) -> dict:
     if not isfinite(req.reward):
         raise HTTPException(status_code=422, detail="reward must be finite")
     with LOCK:
-        decision = DECISIONS.pop(req.agent_id, None)
+        pending = DECISIONS.get(req.agent_id)
+        decision = pending.pop(req.action_id, None) if pending is not None else None
         if decision is None:
-            return {"accepted": False, "reason": "no prior action", "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES}
-        x, chosen = decision
-        loss = update_from_outcome(MODEL, ONLINE_OPTIMIZER, x, chosen, req.reward)
+            return {"accepted": False, "reason": "unknown_or_consumed_action_id",
+                    "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES}
+        if monotonic() - decision.timestamp > ACTION_TTL_SECONDS:
+            return {"accepted": False, "reason": "expired_action_id",
+                    "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES}
+        if req.navigation_override:
+            return {"accepted": False, "reason": "navigation_intervention",
+                    "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES}
+        loss = update_from_outcome(MODEL, ONLINE_OPTIMIZER, decision.history,
+                                   decision.heads, req.reward, credit=req.credit)
         ONLINE_UPDATES += 1
         OBSERVED_REWARDS.append(req.reward)
         if len(OBSERVED_REWARDS) > 1000:
             del OBSERVED_REWARDS[:100]
-        # Save *every* observed Unity event, atomically, so closing the game
-        # does not silently discard the last few learned updates.
         save(ONLINE_OUTPUT, MODEL, ONLINE_OPTIMIZER,
              steps=BASE_STEPS + ONLINE_UPDATES,
              seed=CONFIG.seed,
              metrics={"source": "Unity observed outcomes",
                       "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES,
+                      "attribution": "explicit-action-id-v2",
                       "mean_recent_event_reward": sum(OBSERVED_REWARDS) / len(OBSERVED_REWARDS)})
-        return {"accepted": True, "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES,
+        return {"accepted": True, "action_id": req.action_id,
+                "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES,
                 "loss": loss, "reward": req.reward}
 
 

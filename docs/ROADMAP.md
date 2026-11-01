@@ -22,6 +22,6 @@ This document distinguishes **implemented** work from **planned** experiments.
 
 ## API boundaries
 
-Implemented: /health, /act, /reset, and gated /experience (real post-action reward triggers gradient update and atomic save). Native CLI handles offline train/checkpoints. /train, /checkpoint/save, /checkpoint/load are not REST endpoints, and full PPO remains future work.
+Implemented: /health, /act with unique action_id, /reset, and gated /experience with replay/expiry rejection and one-time credit assignment (real post-action reward triggers gradient update and atomic save). Native CLI handles offline train/checkpoints. /train, /checkpoint/save, /checkpoint/load are not REST endpoints, and full PPO remains future work.
 
 Training uses synthetic arena rewards or real observed Unity status deltas, never Ollama-generated labels. First measured outcomes: [2026-11-01 experiment](EXPERIMENTS-2026-11-01.md).

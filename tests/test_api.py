@@ -23,7 +23,7 @@ def test_act_and_reset_and_invalid_observation():
     response = client.post("/act", json={"agent_id": "test-agent", "observation": observation})
     assert response.status_code == 200
     output = response.json()
-    assert set(output) == {"move_x", "move_z", "face_x", "face_z", "interact", "answer", "value", "model_trained"}
+    assert set(output) == {"move_x", "move_z", "face_x", "face_z", "interact", "answer", "value", "model_trained", "action_id"}
     assert output["model_trained"] is False
     assert output["answer"] in {"none", "good", "bad"}
     assert client.post("/reset", json={"agent_id": "test-agent"}).json()["reset"] is True

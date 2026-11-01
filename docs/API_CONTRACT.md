@@ -17,15 +17,15 @@ Reports service, trained, training_available, parameters, training_steps, online
 
 Request: agent_id (string), observation (32 finite numbers following src/adventure_tiny_llm/observation.py), deterministic (boolean). Response: move_x/move_z, face_x/face_z, interact (bool), answer (none/good/bad), value (float) and model_trained (bool). This is a **numeric policy**, not a language model.
 
-Server remembers the latest action and its observation independently for each agent, for optional outcome-based updates. A 32-step temporal context is held in process RAM. Return value is a model prediction, not proof of quality.
+Server returns a random unique action_id per decision and stores the observation plus action heads for up to 20 seconds (48 outstanding decisions per agent). The client MUST pass the exact action_id for the responsible physical action in /experience. A 32-step temporal context is held in process RAM. Return value is a model prediction, not proof of quality.
 
 ## POST /experience
 
-Enabled **only** when ADVENTURE_TINY_ONLINE_TRAIN=1. JSON body: agent_id, reward (finite float), event (short description). Unity sends it only when an actual interaction updates game stats. The server consumes the agent's last decision once, computes an actor-critic gradient from the observed reward and checkpoints after each accepted update.
+Enabled **only** when ADVENTURE_TINY_ONLINE_TRAIN=1. JSON body: agent_id, action_id, reward (finite float), credit (move / interact / answer), navigation_override (bool), event (short description). Unity sends it only when an actual interaction updates game stats **and the HUD has Train in Game selected**. The server consumes exactly the matched decision once, computes an actor-critic gradient on the selected action head and checkpoints after each accepted update. It refuses unknown, expired, repeated IDs and navigation-assisted interventions.
 
 Response: accepted, online_updates, loss, reward, or accepted=false with reason if no last decision exists. With training disabled returns HTTP 403. The Game's weighted reward follows its measured HP, Knowledge, Relationship, and Boredom deltas; secret game rules are NOT passed as observations.
 
-**Current temporal limitation:** The latest /act is used for credit assignment. When outcomes are delayed, that may not be the actual responsible action. Next phase should carry action_id and trajectory/episode identity.
+**Current temporal limitation:** v2 action_id prevents arbitrary last-action matching, but Unity still attributes a collision to the most recently applied move, rather than a full physical action trajectory; outcomes delayed across several commands may still require multi-step trace/episode IDs. The protocol is a safety improvement, not proof of perfect causal assignment.
 
 ## POST /reset
 
