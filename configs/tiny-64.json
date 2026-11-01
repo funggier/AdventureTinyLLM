@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "seed": 1234,
+  "observation_size": 32,
+  "max_context": 32,
+  "d_model": 64,
+  "n_layers": 2,
+  "n_heads": 4,
+  "n_kv_heads": 2,
+  "d_ff": 176,
+  "num_move_actions": 9,
+  "num_interact_actions": 2,
+  "num_answer_actions": 3,
+  "init_std": 0.02
+}

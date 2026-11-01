@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Training artifacts: not source control
+checkpoints/
+runs/
+data/
+*.pt
+*.pth
+*.onnx
+*.safetensors
+*.log
+.env
+.env.*
+!.env.example
+
+# OS and IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
