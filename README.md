@@ -27,7 +27,7 @@ This is **not a fork** of those projects and does not import their weights, corp
 
 ## Current state
 
-**Initial repository / engineering prototype.** Contains the design, typed contracts, a tiny random-initialized Transformer, and an optional REST inference API. **PPO/online learning, replay, and model training are planned, not implemented.** An untrained model's actions are random/meaningless; a successful API response does **not** demonstrate learning.
+**Native RL and Unity integration prototype (post-v0.1.0).** The Transformer now supports random-origin actor-critic training in a small synthetic 2D arena, safe checkpoints, a real Unity Tiny AI controller through REST, and optional weight updates from *observed* game outcomes. This is **not PPO**, not language pretraining, and not demonstrated full-game competence. Ollama remains fully independent. See [first measured experiment](docs/EXPERIMENTS-2026-11-01.md).
 
 ### Suggested tiny configuration
 
@@ -43,7 +43,7 @@ This is **not a fork** of those projects and does not import their weights, corp
 
 The action schema mirrors the Unity controller: `move_x`, `move_z`, `face_x`, `face_z`, `interact`, `answer`.
 
-## Try the untrained inference API
+## Run Tiny AI, train and integrate with Unity
 
 Requires Python 3.11+ and an installed, compatible PyTorch wheel:
 
@@ -55,9 +55,22 @@ python -m pytest
 python -m uvicorn adventure_tiny_llm.api:app --host 127.0.0.1 --port 8765
 ```
 
-`GET http://127.0.0.1:8765/health` reports whether this is an **untrained** random model. `POST /act` expects an `observation` array of 32 numeric features. `POST /reset` clears one agent's observation history. See [API contract](docs/API_CONTRACT.md). **No training endpoint is advertised until it trains real weights.** Never expose this unauthenticated prototype service to public networks.
+For Windows, after installing the Python dependencies, the convenience scripts are:
 
-The existing Unity Ollama adapter uses a different prompt/endpoint. A dedicated Unity Tiny adapter and shared observation encoder are upcoming steps, **not yet connected**.
+    powershell -ExecutionPolicy Bypass -File .\scripts\train.ps1
+    powershell -ExecutionPolicy Bypass -File .\scripts\start_api.ps1 -EnableOnline
+
+The API starter selects the saved online checkpoint first, otherwise the offline checkpoint. It binds only to 127.0.0.1. Omit -EnableOnline to run inference without changing weights. Keep this PowerShell window open while playing Unity.
+
+To train a numeric navigation policy from scratch manually, run this in the local virtual environment:
+
+    python -m adventure_tiny_llm.training --steps 200 --batch-size 32 --seed 1234 --output checkpoints/tiny-v1.pt
+
+Point ADVENTURE_TINY_CHECKPOINT at checkpoints/tiny-v1.pt to load learned weights. To enable updates from Unity's *actual post-action stat deltas*, set ADVENTURE_TINY_ONLINE_TRAIN=1 and ADVENTURE_TINY_ONLINE_OUTPUT to checkpoints/tiny-unity-online.pt (prefer absolute paths). Start the REST API with uvicorn. Every accepted Unity outcome updates the model and saves an independent online checkpoint; future runs can load that checkpoint to resume weights and optimizer state.
+
+GET /health reports model training status and online updates; POST /act expects 32 numeric features; POST /experience accepts only a post-action observed reward when online training was explicitly enabled; POST /reset clears agent context. See [API contract](docs/API_CONTRACT.md). The Unity scene AdventureValley already has the AdventureTinyController. Press TAB to cycle Manual → Ollama → Tiny; the camera always remains third-person.
+
+**Important:** The offline training environment is a simplified 2D curriculum. Its improved score must not be confused with measured survival/learning in the full Unity game. This unauthenticated experimental API must run on 127.0.0.1 only.
 
 ## Documents
 
@@ -66,6 +79,7 @@ The existing Unity Ollama adapter uses a different prompt/endpoint. A dedicated 
 - [Roadmap and qualification](docs/ROADMAP.md)
 - [REST API contract](docs/API_CONTRACT.md)
 - [v0.1.0 release notes](docs/releases/v0.1.0.md)
+- [First real training & Unity experiment](docs/EXPERIMENTS-2026-11-01.md)
 
 Release artifacts use the names `AdventureTinyLLM-V0.1.0-Release.zip`, `AdventureTinyLLM-V0.1.0-Document.zip`, and `SHA256SUMS.txt`. The `scripts/package_release.py` helper packages only files committed in Git, with reproducible ZIP metadata.
 

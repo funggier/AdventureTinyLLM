@@ -1,44 +1,36 @@
-# REST API (initial untrained inference)
+# AdventureTinyLLM REST API — experimental v0.2-dev contract
 
-Default: `http://127.0.0.1:8765`. This development server is not authenticated; **bind to loopback only**.
+The service runs only on loopback at http://127.0.0.1:8765. It has **no authentication**; never expose it to a LAN or the internet.
+
+## Environment
+
+- ADVENTURE_TINY_CHECKPOINT: path to the trained .pt checkpoint; if omitted model weights are freshly random.
+- ADVENTURE_TINY_ONLINE_TRAIN=1: explicitly enable live neural updates from post-action reward.
+- ADVENTURE_TINY_ONLINE_OUTPUT: separate path for atomic online checkpoint saves after every accepted event (default checkpoints/tiny-unity-online.pt).
+- When restarting from an online checkpoint, set CHECKPOINT to the online file. Saved model and optimizer states both resume.
 
 ## GET /health
 
-Returns service/architecture metadata, `trained: false`, `training_available: false`, and current parameter count if Torch has loaded.
+Reports service, trained, training_available, parameters, training_steps, online_updates, seed, max_context and checkpoint. For a loaded checkpoint, trained=true. training_available is only true with the explicit online-training environment flag.
 
 ## POST /act
 
-Request:
-```json
-{
-  "agent_id": "tiny-001",
-  "observation": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  "deterministic": true
-}
-```
+Request: agent_id (string), observation (32 finite numbers following src/adventure_tiny_llm/observation.py), deterministic (boolean). Response: move_x/move_z, face_x/face_z, interact (bool), answer (none/good/bad), value (float) and model_trained (bool). This is a **numeric policy**, not a language model.
 
-Response:
-```json
-{
-  "move_x": 0.0,
-  "move_z": 1.0,
-  "face_x": 0.0,
-  "face_z": 1.0,
-  "interact": false,
-  "answer": "none",
-  "value": 0.0,
-  "model_trained": false
-}
-```
+Server remembers the latest action and its observation independently for each agent, for optional outcome-based updates. A 32-step temporal context is held in process RAM. Return value is a model prediction, not proof of quality.
 
-Action fields are aligned with AIAdventureRPG's existing Ollama Action schema, but observation encoding is separate. This is a **random-initialized model**. Observations must be finite numeric values with exactly 32 entries. A rolling 32-step context is stored per `agent_id` in process memory only.
+## POST /experience
+
+Enabled **only** when ADVENTURE_TINY_ONLINE_TRAIN=1. JSON body: agent_id, reward (finite float), event (short description). Unity sends it only when an actual interaction updates game stats. The server consumes the agent's last decision once, computes an actor-critic gradient from the observed reward and checkpoints after each accepted update.
+
+Response: accepted, online_updates, loss, reward, or accepted=false with reason if no last decision exists. With training disabled returns HTTP 403. The Game's weighted reward follows its measured HP, Knowledge, Relationship, and Boredom deltas; secret game rules are NOT passed as observations.
+
+**Current temporal limitation:** The latest /act is used for credit assignment. When outcomes are delayed, that may not be the actual responsible action. Next phase should carry action_id and trajectory/episode identity.
 
 ## POST /reset
 
-Request: `{"agent_id":"tiny-001"}`. Clears that agent's temporal context. This is not a game reset or training operation.
+Body agent_id. Clears that agent's short-term context and outstanding last decision. Does not reset the game or model weights.
 
-## Planned, not exposed yet
+## Not implemented
 
-`/experience`, `/train`, `/training/status`, `/checkpoint/save`, `/checkpoint/load`.
-
-A reward observation must be a post-action event; no hidden world rule may be sent as a training label. API request versioning and authentication are required before network exposure or production use.
+PPO, long-horizon rollout tracking, world-level save/load, model-based planning, ASCA episodic memory, ML-Agents, remote API authentication.
