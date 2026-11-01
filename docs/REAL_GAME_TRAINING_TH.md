@@ -38,6 +38,16 @@ start_api.ps1 เลือก checkpoints/tiny-unity-online.pt ก่อน ห�
 
 ทดสอบ: ปิด/เปิด Terrain View ยังคง 16/16 Chunk และบังคับเรียก Shutdown() ระหว่าง Play Mode แล้วระบบฟื้นกลับได้ 16/16 Chunk, ไม่ทำให้ข้อมูลพื้นดินสูญหาย ทดสอบ Train in Game 4x พร้อม NPC/ไอเทมจำนวนมากแล้ว API ไม่ล้มเหลว
 
+## Fix: ตัวละครหล่นใต้พื้นทั้งที่ Terrain ยังแสดงอยู่ (2026-11-02)
+
+ตรวจ Unity จริงพบว่าเมื่อ Unity Recompile/Domain Reload ระหว่าง Play Mode โมเดล C# `ModuleRuntime` และ `IWorldQuery` หายไปจาก `AdventureWorld` แต่ Mesh ของ Terrain ยังแสดงอยู่ ทำให้โค้ดเดิม GroundHeight() คืน 0 และ `Rigidbody.MovePosition()` ย้ายตัวละครลงไป Y=0.87 ทั้งที่พื้นที่จริงสูง 12 (ไม่ใช่อาการแรงโน้มถ่วงหรือตัวละครทะลุ MeshCollider)
+
+แก้ใน AIAdventureRPG ที่ `AdventureAgent.cs` และ `AdventureWorld.cs`: หยุดควบคุมตัวละครเมื่อ World Query ยังไม่พร้อม, ใช้ NaN แทน 0 เพื่อไม่ปลอมค่าพื้น, ตรวจจับและสร้าง Runtime/Voxel Query กลับจากแผนที่ Seed เดิม, สร้าง Terrain View ใหม่ และผูก NPC/ไอเทมที่อยู่ใน Scene อยู่แล้ว ไม่สร้าง NPC ซ้ำ และเลื่อนตัวละครกลับขึ้นพื้นเมื่อ Y ต่ำกว่าพื้นจริง
+
+Regression: ทดสอบบังคับให้ World Runtime หายระหว่างฝึก **8x** แล้วตรวจพบว่าฟื้นคืน Terrain 16/16 Chunk, ไอเทม 95, NPC 17, ตัวละคร Y=12.87 บนพื้น Y=12, API requests ไม่ล้มเหลว ทดสอบ Unity Script Reload ซ้ำอีกครั้งพบว่าฟื้นตัวได้เหมือนกัน คืนการเล่นเป็น Tiny Evaluate 1x แล้ว
+
+หมายเหตุ: การคืน World Query ใช้ Terrain Generator จาก Seed เดิม หากอนาคตเกมมีการแก้ไข voxel ที่ต้องคงอยู่ข้าม Domain Reload ต้องเพิ่ม Snapshot/Restore ของโลกแทนการสร้างจาก Seed อย่างเดียว
+
 ## Action attribution
 
 - /act คืน action_id เฉพาะแต่ละคำสั่ง
