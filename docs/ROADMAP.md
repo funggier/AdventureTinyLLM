@@ -9,7 +9,7 @@ This document distinguishes **implemented** work from **planned** experiments.
 | AT-003 Native Trainer | PARTIAL | Native one-step actor-critic training in synthetic 2D arena, 200 steps, reward improvements on held-out synthetic seeds; full multi-step RL/episodes and real game performance evaluation pending |
 | AT-004 Checkpoint & evaluation | PARTIAL | Model + optimizer + seed + schema v1 saved, safe reload, independent online Unity outcomes, held-out synthetic seeds; held-out Unity maps and exact optimizer trajectory equivalence pending |
 | AT-005 ASCA-inspired memory | PLANNED | Familiarity / Surprise / Episodic memory as optional ablation switches, bounded cost |
-| AT-006 Accelerated Training Arena | PLANNED | Resettable simulations, reproducible procedural map seeds, faster-than-visualized training |
+| AT-006 Accelerated Training Arena | PARTIAL | Real Unity gameplay now supports 1x/2x/4x/8x Time.timeScale with measured wall-clock speed; dedicated headless/batched resettable training arena and map-seed curriculum still PLANNED |
 | AT-007 Optional ML-Agents | PLANNED | Separate adapter without runtime hard dependency, matched observations/actions/rewards |
 | AT-008 Temporal alternatives | PLANNED | Tiny Transformer vs MLP vs memory-augmented and larger-context variants at matched budgets |
 
