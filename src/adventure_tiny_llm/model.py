@@ -96,7 +96,9 @@ class AdventureTransformer(nn.Module):
         self.blocks = nn.ModuleList(Block(cfg) for _ in range(cfg.n_layers))
         self.norm = RMSNorm(cfg.d_model)
         self.move_head = nn.Linear(cfg.d_model, cfg.num_move_actions)
+        self.distance_head = nn.Linear(cfg.d_model, cfg.num_distance_actions)
         self.interact_head = nn.Linear(cfg.d_model, cfg.num_interact_actions)
+        self.ability_head = nn.Linear(cfg.d_model, cfg.num_ability_actions)
         self.answer_head = nn.Linear(cfg.d_model, cfg.num_answer_actions)
         self.value_head = nn.Linear(cfg.d_model, 1)
         self.apply(self._init_weights)
@@ -111,7 +113,7 @@ class AdventureTransformer(nn.Module):
     def parameter_count(self) -> int:
         return sum(p.numel() for p in self.parameters())
 
-    def forward(self, observations: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, observations: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         if observations.ndim != 3 or observations.size(-1) != self.config.observation_size:
             raise ValueError("expected [batch, time, observation_size]")
         if observations.size(1) < 1 or observations.size(1) > self.config.max_context:
@@ -121,4 +123,5 @@ class AdventureTransformer(nn.Module):
             x = block(x)
         state = self.norm(x[:, -1, :])
         return (self.move_head(state), self.interact_head(state),
-                self.answer_head(state), self.value_head(state).squeeze(-1))
+                self.answer_head(state), self.value_head(state).squeeze(-1),
+                self.distance_head(state), self.ability_head(state))

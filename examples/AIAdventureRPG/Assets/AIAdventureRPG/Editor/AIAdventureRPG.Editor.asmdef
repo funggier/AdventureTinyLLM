@@ -1,0 +1,1 @@
+{"name":"AIAdventureRPG.Editor","rootNamespace":"AIAdventureRPG.Editor","references":["AIAdventureRPG.Runtime","HMGF.Core","HMGF.World"],"includePlatforms":["Editor"],"autoReferenced":true}

@@ -1,0 +1,1 @@
+{"name":"AIAdventureRPG.Runtime","rootNamespace":"AIAdventureRPG","references":["HMGF.Core","HMGF.World","HMGF.Presentation"],"autoReferenced":true,"noEngineReferences":false}

@@ -1,0 +1,15 @@
+{
+  "name": "AIAdventureRPG.Tests",
+  "rootNamespace": "AIAdventureRPG.Tests",
+  "references": [
+    "AIAdventureRPG.Runtime"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "autoReferenced": true,
+  "noEngineReferences": false
+}

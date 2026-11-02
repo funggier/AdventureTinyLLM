@@ -1,12 +1,16 @@
 # AdventureTinyLLM — ฝึกผ่านเกมจริง
 
+## อัปเดตโปรโตคอลเดิน (2026-11-02)
+
+Tiny AI ใช้ observation 40 ค่า และตัดสินใจทั้งทิศทางกับระยะเดิน 1/2/4/6/10 หน่วยโลก แทนการเดินตามทิศทางค้างไว้ตามเวลา การเดินเสร็จหรือถูกขวางจะหยุดแล้วรับข้อมูลจริงพร้อมพิกัด X/Z ก่อนตัดสินใจใหม่ Ollama รองรับ `move_distance` เป็นตัวเลข 0–12 หน่วยเช่นกัน แต่ MANUAL/WASD ไม่เปลี่ยน ดู [รายละเอียด](FINITE_DISTANCE_ACTIONS_TH.md) และใช้น้ำหนักใหม่เท่านั้นกับโมเดล v2
+
 ## ทางเลือกฝึก
 
 **Synthetic Training** รันไฟล์ scripts/train.ps1 ฝึก Transformer จากสถานการณ์จำลอง 2D บน Python/PyTorch แล้วบันทึก checkpoints/tiny-v1.pt
 
-**Train in Game** รัน scripts/start_api.ps1 -EnableOnline แล้วเปิด Unity ฉาก AdventureValley จากนั้นกด TAB จนเป็น Tiny และกด **Train in Game** ใน HUD ตัวละครจะใช้ Neural Policy เดินในเกมจริง และส่งผลจากการเก็บไอเทมหรือปฏิสัมพันธ์ไปฝึกเมื่อเกิดเหตุการณ์จริง
+**TRAIN TINY** รัน scripts/start_api.ps1 -EnableOnline แล้วเปิด Unity ฉาก AdventureValley กดปุ่ม **TRAIN TINY** จากแถบเลือกโหมดด้านบน (ห้ามใช้ TAB เพื่อเริ่มฝึก) ตัวละครจะใช้ Neural Policy เดินในเกมจริง และส่งผลจากการเก็บไอเทมหรือปฏิสัมพันธ์ไปฝึกเมื่อเกิดเหตุการณ์จริง
 
-**Evaluate (freeze)** เป็นค่าเริ่มต้น ไม่ส่ง Reward ไปฝึก แม้ API จะอนุญาต Online Training เพื่อไม่ให้ทดลองเล่นแล้วแก้น้ำหนักโดยไม่ตั้งใจ
+**USE TRAINED (freeze)** ใช้ Tiny ที่ API ยืนยันว่าผ่านการฝึกมาแล้วเท่านั้น ไม่ส่ง Reward ไปฝึกแม้ API จะอนุญาต Online Training; ถ้าโมเดลเพิ่งถูกรีเซ็ตยังไม่มีการฝึก ปุ่มนี้จะเลือกไม่ได้ เกมเริ่มในโหมด **MANUAL** เพื่อไม่ให้ทดลองเล่นแล้วแก้น้ำหนักโดยไม่ตั้งใจ
 
 ## วิธีใช้งาน
 
@@ -16,13 +20,13 @@ cd T:\Space\Projects\ProjectsAI\AdventureTinyLLM
 .\scripts\start_api.ps1 -EnableOnline
 ~~~
 
-ใน Unity เปิด Assets/AIAdventureRPG/Scenes/AdventureValley.unity, Play, TAB สองครั้งจาก Manual เป็น Tiny แล้วเลือก Train in Game / Evaluate (freeze) ด้วยปุ่ม HUD มุมล่างขวา กล้องยังเป็นบุคคลที่สามเหมือนเดิม
+ใน Unity เปิด Assets/AIAdventureRPG/Scenes/AdventureValley.unity แล้ว Play เลือกจากแถบบน: **MANUAL / TRAIN TINY / USE TRAINED / OLLAMA** (Ollama แยกโมเดล/ความจำจาก Tiny) TAB ใช้สลับโหมดปลอดภัยโดยไม่เริ่มฝึก กล้องยังเป็นบุคคลที่สามเหมือนเดิม HUD ย่อขยายตามสัดส่วนหน้าจอ และโทษเสียชีวิต = −2.0 Reward เมื่อมี action_id ที่ใช้งานจริงรองรับ
 
 ### Fast Training ในฉากเกมจริง
 
 เมื่อเลือก Train in Game สามารถกด **1x / 2x / 4x / 8x** เพื่อเร่งเวลา Unity และระบบเก็บของ/Respawn/การเคลื่อนที่ โดยระบบปรับ fixedDeltaTime ตามรากที่สองของตัวคูณ เพื่อลดภาระ Physics เมื่อเทียบกับการเพิ่มจำนวน FixedUpdate ตามตัวคูณตรงๆ ขณะยังจำกัดระยะที่ตัวละครเคลื่อนที่ต่อขั้น (ความแม่นยำการชนอาจเปลี่ยนจาก 1x)
 
-เมื่อกด Evaluate (freeze), สลับไป Human/Ollama หรือออกจาก Play Mode จะคืน Time.timeScale=1 และ fixedDeltaTime ปกติ ไม่เปลี่ยนกล้องเดิม
+เมื่อกด USE TRAINED (freeze), สลับไป MANUAL/OLLAMA หรือออกจาก Play Mode จะคืน Time.timeScale=1 และ fixedDeltaTime ปกติ ไม่เปลี่ยนกล้องเดิม
 
 HUD แสดง **Measured sim (x real), actions/s, API latency (ms/request) และ accepted training outcomes/min** เพื่อดูความเร็วที่เกิดขึ้นจริง ไม่ใช่ยึดตัวคูณที่เลือกอย่างเดียว ตัวเลขจากหนึ่งช่วงทดสอบบนเครื่องนี้: 1x = 1.01x / 1.43 requests/s; 4x = 4.05x / 5.67 requests/s; 8x = 8.10x / 11.17 requests/s โดยไม่มีข้อผิดพลาด API ระหว่างวัด แต่ตัวเลขจะเปลี่ยนตาม CPU, GPU, การเรนเดอร์ และ API
 

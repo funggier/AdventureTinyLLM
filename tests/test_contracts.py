@@ -5,7 +5,7 @@ from adventure_tiny_llm.contracts import MOVEMENTS, decode_action, validate_obse
 
 
 def test_numeric_observation():
-    assert len(validate_observation([0.0]*32)) == 32
+    assert len(validate_observation([0.0]*51)) == 51
     with pytest.raises(ValueError):
         validate_observation([0.0]*31)
     with pytest.raises(ValueError):
@@ -21,4 +21,5 @@ def test_actions_match_unity_shape():
     assert action["interact"] is True
     assert action["answer"] == "bad"
     assert action["model_trained"] is False
+    assert action["move_distance"] == 1.0
     assert len(MOVEMENTS) == 9

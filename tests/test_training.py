@@ -5,7 +5,7 @@ from adventure_tiny_llm.training import reward_for_action, train, evaluate, upda
 from adventure_tiny_llm.checkpoint import load
 
 def test_observation_schema():
-    assert len(FEATURES) == 32
+    assert len(FEATURES) == 51
     values = pack(seen_herb=1, constant_one=1)
     assert values[10] == 1
     assert values[31] == 1
@@ -31,7 +31,7 @@ def test_live_external_reward_changes_weights():
     net=AdventureTransformer(TinyConfig())
     optim=torch.optim.AdamW(net.parameters(),lr=.0001)
     before=net.input.weight.detach().clone()
-    x=torch.zeros((1,2,32));x[...,31]=1
-    loss=update_from_outcome(net,optim,x,(1,0,0),.26)
+    x=torch.zeros((1,2,51));x[...,31]=1
+    loss=update_from_outcome(net,optim,x,(1,0,0,2,0),.26)
     assert torch.isfinite(torch.tensor(loss))
     assert not torch.equal(before,net.input.weight.detach())

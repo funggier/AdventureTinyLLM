@@ -14,17 +14,20 @@ def test_health_untrained_contract():
     assert payload["status"] == "ready"
     assert isinstance(payload["trained"], bool)  # may resume an online checkpoint
     assert payload["training_available"] is False
-    assert payload["parameters"] == 95567
+    assert payload["parameters"] > 95567
+    assert payload["observation_size"] == 51
+    assert payload["distance_options"] == [1.0, 2.0, 4.0, 6.0, 10.0]
 
 
 def test_act_and_reset_and_invalid_observation():
     client = TestClient(app)
-    observation = [0.0] * 32
+    observation = [0.0] * 51
     response = client.post("/act", json={"agent_id": "test-agent", "observation": observation})
     assert response.status_code == 200
     output = response.json()
-    assert set(output) == {"move_x", "move_z", "face_x", "face_z", "interact", "answer", "value", "model_trained", "action_id"}
+    assert set(output) == {"move_x", "move_z", "face_x", "face_z", "interact", "answer", "value", "model_trained", "action_id", "move_distance", "ability"}
     assert isinstance(output["model_trained"], bool)  # depends on checkpoint at startup
     assert output["answer"] in {"none", "good", "bad"}
+    assert output["move_distance"] in {0.0, 1.0, 2.0, 4.0, 6.0, 10.0}
     assert client.post("/reset", json={"agent_id": "test-agent"}).json()["reset"] is True
     assert client.post("/act", json={"agent_id": "bad-test", "observation": [0.0] * 31}).status_code == 422

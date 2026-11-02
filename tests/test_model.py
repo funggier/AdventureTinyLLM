@@ -9,11 +9,12 @@ def test_forward_heads_and_value():
     cfg = TinyConfig()
     torch.manual_seed(cfg.seed)
     model = AdventureTransformer(cfg)
-    move, interact, answer, value = model(torch.randn(2, 5, cfg.observation_size))
+    move, interact, answer, value, distance, ability = model(torch.randn(2, 5, cfg.observation_size))
     assert move.shape == (2, 9)
     assert interact.shape == (2, 2)
     assert answer.shape == (2, 3)
     assert value.shape == (2,)
+    assert distance.shape == (2, 5)
     assert torch.isfinite(move).all()
 
 

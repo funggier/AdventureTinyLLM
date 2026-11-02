@@ -1,50 +1,84 @@
-# AdventureTinyLLM REST API — experimental v0.2-dev contract
+# AdventureTinyLLM REST API — v0.2.0 Tactical
 
-The service runs only on loopback at http://127.0.0.1:8765. It has **no authentication**; never expose it to a LAN or the internet.
+The service listens on **127.0.0.1:8765** with no authentication. **Do not expose it over LAN/WAN**. The integration example uses Unity 6000.6.7f1 and is in `examples/AIAdventureRPG`.
 
-## Environment
+## Configuration
 
-- ADVENTURE_TINY_CHECKPOINT: path to the trained .pt checkpoint; if omitted model weights are freshly random.
-- ADVENTURE_TINY_ONLINE_TRAIN=1: explicitly enable live neural updates from post-action reward.
-- ADVENTURE_TINY_ONLINE_OUTPUT: separate path for atomic online checkpoint saves after every accepted event (default checkpoints/tiny-unity-online.pt).
-- When restarting from an online checkpoint, set CHECKPOINT to the online file. Saved model and optimizer states both resume.
+| Environment | Meaning |
+|---|---|
+| `ADVENTURE_TINY_CHECKPOINT` | Optional compatible v4/51-input `.pt` checkpoint to resume |
+| `ADVENTURE_TINY_ONLINE_TRAIN=1` | Explicit opt-in to neural weight updates from Unity |
+| `ADVENTURE_TINY_ONLINE_OUTPUT` | Destination for atomic online checkpoints (default `checkpoints/tiny-unity-online.pt`) |
+
+Use `powershell -ExecutionPolicy Bypass -File .\scripts\start_api.ps1 -EnableOnline` in the Tiny source folder. The launcher checks for existing trained checkpoints and otherwise initializes a random policy.
 
 ## GET /health
 
-Reports service, trained, training_available, parameters, training_steps, online_updates, seed, max_context and checkpoint. For a loaded checkpoint, trained=true. training_available is only true with the explicit online-training environment flag.
+Returns `status="ready"`, `observation_size=51`, `action_protocol="explicit-action-id-v5-tactical"`, `training_available`, `trained`, `training_steps`, `online_updates`, `parameters`, `ability_options`, `distance_options=[1,2,4,6,10]`, and limits. **A fresh model can be ready but untrained**.
 
 ## POST /act
 
-Request: agent_id (string), observation (32 finite numbers following src/adventure_tiny_llm/observation.py), deterministic (boolean), and optional `valid_moves` (exactly nine booleans, at least one true). Response: move_x/move_z, face_x/face_z, interact (bool), answer (none/good/bad), value (float) and model_trained (bool). This is a **numeric policy**, not a language model.
+Request:
+```json
+{
+  "agent_id": "tiny-unity",
+  "observation": [0.0, 0.0],
+  "deterministic": false,
+  "valid_moves": [true, true, true, true, true, true, true, true, true]
+}
+```
+**Note:** The `observation` shown above is truncated for readability; a real request **must contain 51 finite float values**, ordered as in `src/adventure_tiny_llm/observation.py`. `valid_moves` is optional; if provided, it must be nine booleans with at least one `true`.
 
-When supplied, `valid_moves` masks the movement logits **before** deterministic argmax or stochastic sampling, so the model can never choose a physically unavailable movement. Indices must match `MOVEMENTS`: `[idle, north, south, west, east, northwest, northeast, southwest, southeast]`. The trainer stores that exact availability mask with its action ID and applies the SAME masked move-logit distribution to its policy-gradient loss. Old clients without masks remain compatible. In Unity, the optional safety filter uses the hard world clamp (2..width-2, 2..depth-2), excludes outward choices near an edge, and may exclude idle after prolonged stagnation when an inward route exists. **Persistent anti-stuck recovery:** after >12 game seconds with no meaningful progress within 8 units of the outer perimeter, the client temporarily masks movement to the inward axes of the triggering boundary until the avatar has reached 16 units inside that boundary (or boundaries at a corner). It may activate again if the agent returns to the same unproductive rim. Since this constrained movement is safety assistance rather than freely learned navigation, its move-head gameplay rewards and no-progress penalties are not credited to the learner; independently chosen interact/answer actions can still be credited. Delayed responses that become illegal at their time of application are discarded without action credit. **This is legal-action sampling, not an artificial navigation reward or an Ollama-controlled detour.** The rule is a hard-edge guard, not full terrain pathfinding.
+Response fields include `action_id` (unique, one-use ID), `move_x`, `move_z`, `move_distance` (0 if idle, otherwise 1/2/4/6/10 world units), `face_x`, `face_z`, `interact`, `answer` (none/good/bad), `ability` (none/special/arc/heal), `value`, and `model_trained`. The model samples its learned categorical distributions when `deterministic=false` and uses argmax when true.
 
-Server returns a random unique action_id per decision and stores the observation plus action heads for up to 20 seconds (48 outstanding decisions per agent). The client MUST pass the exact action_id for the responsible physical action in /experience. A 32-step temporal context is held in process RAM. Return value is a model prediction, not proof of quality.
-
-## Survival feature migration: Happiness and no-progress reward
-
-Feature 5 now represents normalized **Happiness** (instead of Relationship); feature 22 represents the last observed Happiness delta. Feature 28 now conveys **zone fatigue normalized**: `clamp01(seconds_in_current_zone / (zoneGraceSeconds × 2))`. With default 16×16 world-unit zones, grace of 35 game seconds corresponds to 0.5. The map contains 4×4 such zones at 64×64 total size. This replaces global clock phase in the former index 28. Observation dimensionality remains 32, so old checkpoint weights can load but their previous feature meanings have changed and policies require new evaluation. The Unity environment now counts meaningful outcomes: useful pickups/eating, genuine NPC conversations or new knowledge, and monster hits/kills. After 12 game seconds without such progress, Happiness decays slowly even when the avatar wiggles or walks. `PassiveNoProgress` emits a small negative move-head `/experience` for an actual issued `action_id`; reading a sign remains zero-reward and skipped for this penalty. It never rewards mere movement.
-
-## POST /observe — zero-reward information intake
-
-Request: `{"agent_id":"tiny-unity","kind":"sign","source":"Camp safety board","text":"Duskberry is poisonous"}`. The server stores at most 24 sign observations per agent in bounded process memory, returning `{"accepted":true,"kind":"sign","reward":0,"model_updated":false,"observed_count":1}`.
-
-**No neural learning from merely reading:** this endpoint does not consume action IDs, update policy weights, send an RL experience, or perform language understanding. The 95k-parameter numeric policy cannot reason about the natural-language sign text. Data is not sent to or from Ollama. This observation buffer resets on `/reset`.
+Availability masks:
+- Movement: optional nine-boolean mask is applied before sampling/argmax and stored with each action ID for consistent policy gradients.
+- Ability: always derived from observation features 40, 41, 42 (can special, can arc, can heal); if an MP/HP condition fails, that ability is masked.
+- Additional tactical observation features 43..50: in combat, low HP, low MP, closest sensed monster distance and bearing X/Z, monster winding up, distance to actually visible thorn.
+- The model never receives hidden world results as observation features. The Unity `AdventureCombatState` determines the configurable 9-unit default detection ring and HP/MP thresholds.
 
 ## POST /experience
 
-Enabled **only** when ADVENTURE_TINY_ONLINE_TRAIN=1. JSON body: agent_id, action_id, reward (finite float), credit (move / interact / answer), navigation_override (bool), event (short description). Unity sends it only when an actual interaction updates game stats **and the HUD has Train in Game selected**. The server consumes exactly the matched decision once, computes an actor-critic gradient on the selected action head and checkpoints after each accepted update. It refuses unknown, expired, repeated IDs and navigation-assisted interventions.
+Request:
+```json
+{
+  "agent_id": "tiny-unity",
+  "action_id": "<actual_id_from_act>",
+  "reward": 0.35,
+  "credit": "move",
+  "navigation_override": false,
+  "event": "source=Self action=DodgeMonster Wild Boar"
+}
+```
 
-Response: accepted, online_updates, loss, reward, or accepted=false with reason if no last decision exists. With training disabled returns HTTP 403. The Game's weighted reward follows its measured HP, Knowledge, Happiness, and Boredom deltas; secret game rules are NOT passed as observations.
+`reward` must be finite. `credit` is one of `move | interact | answer | ability`. Server requires online updates enabled, a real unconsumed action ID issued to the same agent within **20 real seconds**, and no `navigation_override`. Each ID is consumed on processing; duplicate/expired/unknown IDs are rejected. At most 48 pending actions per agent; at most 64 agents have in-process context.
 
-**Current temporal limitation:** v2 action_id prevents arbitrary last-action matching, but Unity still attributes a collision to the most recently applied move, rather than a full physical action trajectory; outcomes delayed across several commands may still require multi-step trace/episode IDs. The protocol is a safety improvement, not proof of perfect causal assignment.
+On acceptance, server runs one policy/value optimization step and saves the checkpoint. `credit=move` trains **both movement direction and movement distance heads** using the exact stored legal-action mask. `credit=ability` trains the separate ability head with its original MP/HP mask. `credit=interact` and `credit=answer` train their corresponding categorical heads. Loss combines actor-critic advantage and state-value regression; training is **not PPO** and does **not** prove learned combat competence.
+
+The **reward itself comes from Unity** `AdventureRewardPolicy.FromOutcome`. See [complete Thai reward criteria and formulas](REWARD_POLICY_TH.md) and [tactical overview](TACTICAL_POLICY_TH.md). Reward amounts, critical 20% thresholds (configurable in Unity), examples, and edge cases are documented there.
+
+`TRAIN TINY` sends experiences; `USE TRAINED` does inference only. Unity excludes ineligible/stale results and forced safety navigation from policy reward credit. Local Unity correlation uses a more restrictive **3 game second** bound for recently applied actions; this is not full multi-step causal credit assignment.
+
+## POST /observe
+
+Send informational observations that **do not train the neural policy**:
+```json
+{"agent_id":"tiny-unity","kind":"sign","source":"Safety board","text":"Beware wild boars"}
+```
+Returns `accepted=true`, `reward=0`, `model_updated=false`. The text is stored in a bounded observation buffer (24 records/agent) and is **not interpreted by the numeric Transformer**.
+
+**Important:** `reward=0` displayed in this information response does **not** imply `/experience` was called. By contrast, an actual `/experience` with `reward=0` can still update model weights.
 
 ## POST /reset
 
-Body agent_id. Clears that agent's short-term context and outstanding last decision. Does not reset the game or model weights.
+`{"agent_id":"tiny-unity"}` drops that agent's in-memory observation history, sign buffer and outstanding action IDs; does **not** erase trained checkpoint weights or game stats.
 
-Survival extension: Unity supplies the nearest **visible monster within 12 units** as primary observation when present, with index 30 set to `-1` for a nearby hostile (otherwise `0` or `+1` for NPC facing). It retains the numeric 32-feature network size but introduces new semantics, so comparisons against the original synthetic trainer must be evaluated again. Kill reward, monster damage, HP/food effects and other scores are computed after interactions by Unity; only one chosen action head receives credit.
+The **RESET OLLAMA CONTEXT** button in the Unity HUD is **separate**: it clears the Ollama gameplay memory and stale prompt history while keeping Tiny model state untouched.
 
-## Not implemented
+## Compatibility
 
-PPO, long-horizon rollout tracking, world-level save/load, model-based planning, ASCA episodic memory, ML-Agents, remote API authentication.
+This v4 model accepts **51 input features** and is not weight-compatible with earlier 32/40/43-feature checkpoints. The 43-feature checkpoint is archived separately and is **not shipped in this source/example release**. Use `GET /health` to verify schema/version before selecting a Unity AI mode.
+
+## Limits and safety
+
+Single-user local experimentation. No remote API authentication, no full MDP trajectory credit, no recurrent cross-episode RL policy, no checkpoint of Unity world state, and no independent Unity game bundle in the example archive. The Unity example requires the HMGF assemblies detailed in `examples/AIAdventureRPG/README.md`.

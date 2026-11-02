@@ -64,11 +64,12 @@ def update_from_outcome(
     model: AdventureTransformer,
     optimizer: torch.optim.Optimizer,
     observation_history: torch.Tensor,
-    chosen_heads: tuple[int, int, int],
+    chosen_heads: tuple[int, ...],
     reward: float,
     *,
     credit: str = "move",
     move_mask: tuple[bool, ...] | None = None,
+    ability_mask: tuple[bool, ...] | None = None,
 ) -> float:
     """One genuine on-policy-ish actor-critic update from an observed external reward.
 
@@ -79,11 +80,11 @@ def update_from_outcome(
     if not math.isfinite(reward):
         raise ValueError("reward must be finite")
     model.train()
-    move, interact, answer, value = model(observation_history)
-    if credit not in ("move", "interact", "answer"):
+    move, interact, answer, value, distance, ability = model(observation_history)
+    if credit not in ("move", "interact", "answer", "ability"):
         raise ValueError("unknown action head for credit")
-    index = {"move": 0, "interact": 1, "answer": 2}[credit]
-    logits = (move, interact, answer)[index]
+    index = {"move": 0, "interact": 1, "answer": 2, "ability": 4}[credit]
+    logits = (move, interact, answer, distance, ability)[index]
     if index == 0 and move_mask is not None:
         if len(move_mask) != logits.shape[-1] or not any(move_mask):
             raise ValueError("invalid action availability stored with decision")
@@ -93,10 +94,22 @@ def update_from_outcome(
         # Use the SAME masked action distribution used when sampling /act,
         # otherwise gradient updates would reward a different policy.
         logits = logits.masked_fill(~legal, -1e9)
+    if index == 4 and ability_mask is not None:
+        if len(ability_mask) != logits.shape[-1] or not ability_mask[chosen_heads[4]]:
+            raise ValueError("ability was not allowed by its MP/HP mask")
+        legal = torch.tensor(ability_mask, dtype=torch.bool, device=logits.device)[None, :]
+        logits = logits.masked_fill(~legal, -1e9)
     log_prob = Categorical(logits=logits).log_prob(
         torch.tensor([chosen_heads[index]], dtype=torch.long))
     target = torch.tensor([float(max(-2, min(2, reward)))], dtype=torch.float32)
     advantage = target - value.detach()
+    # A movement outcome credits both where to go and how far to go.
+    # Distance is an independent head conditioned on the same 51-feature state.
+    # The v4 tactical policy has five heads: move/interact/answer/distance/ability.
+    if credit == "move" and len(chosen_heads) == 5:
+        distance_log_prob = Categorical(logits=distance).log_prob(
+            torch.tensor([chosen_heads[3]], dtype=torch.long))
+        log_prob = log_prob + distance_log_prob
     loss = -(log_prob * advantage).mean() + .5 * (value - target).square().mean()
     optimizer.zero_grad(set_to_none=True)
     loss.backward()
@@ -122,7 +135,7 @@ def train(*, steps: int = 180, batch_size: int = 32, seed: int = 1234, learning_
     for step in range(steps):
         scenarios = [sample_scenario(rng) for _ in range(batch_size)]
         inputs = torch.tensor([x[0] for x in scenarios], dtype=torch.float32).unsqueeze(1)
-        move_logits, _, _, predicted_values = model(inputs)
+        move_logits, _, _, predicted_values, _, _ = model(inputs)
         dist = Categorical(logits=move_logits)
         chosen = dist.sample()
         rewards = torch.tensor([

@@ -7,7 +7,7 @@ import torch
 from .config import TinyConfig
 from .model import AdventureTransformer
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 4
 
 def save(path: str | Path, model: AdventureTransformer, optimizer: torch.optim.Optimizer, *, steps: int, seed: int, metrics: dict) -> None:
     if steps < 1:
@@ -22,7 +22,7 @@ def save(path: str | Path, model: AdventureTransformer, optimizer: torch.optim.O
             "seed": seed,
             "optimizer_steps": steps,
             "trained": True,
-            "observation_schema": "adventure-observation-v1",
+            "observation_schema": "adventure-observation-v4-combat-context",
             "config": model.config.to_dict(),
             "metrics": metrics,
         },
@@ -39,7 +39,7 @@ def load(path: str | Path) -> tuple[AdventureTransformer, dict]:
     if (meta.get("format_version") != FORMAT_VERSION or
         meta.get("architecture") != "adventure-tiny-transformer" or
         meta.get("initialization") != "random" or
-        meta.get("observation_schema") != "adventure-observation-v1" or
+        meta.get("observation_schema") != "adventure-observation-v4-combat-context" or
         not meta.get("trained") or int(meta.get("optimizer_steps", 0)) < 1):
         raise ValueError("invalid or incompatible checkpoint provenance")
     cfg = TinyConfig.from_dict(meta["config"])

@@ -12,7 +12,7 @@ def test_invalid_geometry():
     with pytest.raises(ValueError):
         TinyConfig(n_heads=3).validate()
     with pytest.raises(ValueError):
-        TinyConfig(schema_version=2).validate()
+        TinyConfig(schema_version=1).validate()
 
 
 def test_action_schema_frozen():

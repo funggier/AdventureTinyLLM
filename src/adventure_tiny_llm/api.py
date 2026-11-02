@@ -20,7 +20,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, StrictBool
 
 from .config import TinyConfig
-from .contracts import decode_action, validate_observation
+from .contracts import ABILITIES, DISTANCES, decode_action, validate_observation
 from .model import AdventureTransformer
 from .checkpoint import load, save
 from .training import update_from_outcome
@@ -58,9 +58,10 @@ LOCK = Lock()
 @dataclass(frozen=True)
 class Decision:
     history: torch.Tensor
-    heads: tuple[int, int, int]
+    heads: tuple[int, int, int, int, int]
     timestamp: float
     move_mask: tuple[bool, ...] | None = None
+    ability_mask: tuple[bool, ...] | None = None
 
 
 DECISIONS: dict[str, OrderedDict[str, Decision]] = {}
@@ -92,7 +93,7 @@ class ExperienceRequest(BaseModel):
     action_id: str = Field(min_length=1, max_length=80)
     reward: float
     event: str = Field(default="game outcome", max_length=200)
-    credit: str = Field(default="move", pattern="^(move|interact|answer)$")
+    credit: str = Field(default="move", pattern="^(move|interact|answer|ability)$")
     navigation_override: bool = False
 
 
@@ -119,7 +120,9 @@ def health() -> dict:
         "observed_events": len(OBSERVED_REWARDS),
         "text_observations": sum(len(records) for records in TEXT_OBSERVATIONS.values()),
         "checkpoint": CHECKPOINT_PATH or None,
-        "action_protocol": "explicit-action-id-v2",
+        "action_protocol": "explicit-action-id-v5-tactical",
+        "ability_options": list(ABILITIES),
+        "distance_options": list(DISTANCES),
         "action_ttl_seconds": ACTION_TTL_SECONDS,
         "seed": CONFIG.seed,
         "observation_size": CONFIG.observation_size,
@@ -149,8 +152,13 @@ def act(req: ActRequest) -> dict:
         history = HISTORIES[req.agent_id]
         history.append(observation)
         x = torch.tensor(list(history), dtype=torch.float32).unsqueeze(0)
+        # Costs are game-derived availability bits, not hidden outcomes.
+        ability_mask = (True, observation[40] >= .5, observation[41] >= .5,
+                        observation[42] >= .5)
         with torch.inference_mode():
-            move, interact, answer, value = MODEL(x)
+            move, interact, answer, value, distance, ability = MODEL(x)
+            ability = ability.masked_fill(
+                ~torch.tensor(ability_mask, dtype=torch.bool, device=ability.device)[None, :], -1e9)
             if mask is not None:
                 legal = torch.tensor(mask, dtype=torch.bool, device=move.device).unsqueeze(0)
                 move = move.masked_fill(~legal, -1e9)
@@ -160,12 +168,13 @@ def act(req: ActRequest) -> dict:
                     return int(logits.argmax(-1).item())
                 return int(torch.distributions.Categorical(logits=logits).sample().item())
 
-            indices = choose(move), choose(interact), choose(answer)
-            response = decode_action(*indices, value=float(value.item())).to_dict()
+            indices = choose(move), choose(interact), choose(answer), choose(distance), choose(ability)
+            response = decode_action(indices[0], indices[1], indices[2], indices[3],
+                                     value=float(value.item()), ability=indices[4]).to_dict()
         action_id = uuid4().hex
         _prune(req.agent_id, monotonic())
         DECISIONS[req.agent_id][action_id] = Decision(x.detach().clone(), indices, monotonic(),
-                                                       tuple(mask) if mask is not None else None)
+                                                       tuple(mask) if mask is not None else None, ability_mask)
     response["action_id"] = action_id
     response["model_trained"] = bool(TRAINING_METADATA or ONLINE_UPDATES > 0)
     return response
@@ -205,7 +214,8 @@ def experience(req: ExperienceRequest) -> dict:
                     "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES}
         loss = update_from_outcome(MODEL, ONLINE_OPTIMIZER, decision.history,
                                    decision.heads, req.reward, credit=req.credit,
-                                   move_mask=decision.move_mask)
+                                   move_mask=decision.move_mask,
+                                   ability_mask=decision.ability_mask)
         ONLINE_UPDATES += 1
         OBSERVED_REWARDS.append(req.reward)
         if len(OBSERVED_REWARDS) > 1000:
@@ -215,7 +225,7 @@ def experience(req: ExperienceRequest) -> dict:
              seed=CONFIG.seed,
              metrics={"source": "Unity observed outcomes",
                       "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES,
-                      "attribution": "explicit-action-id-v2",
+                      "attribution": "explicit-action-id-v5-tactical",
                       "mean_recent_event_reward": sum(OBSERVED_REWARDS) / len(OBSERVED_REWARDS)})
         return {"accepted": True, "action_id": req.action_id,
                 "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES,
