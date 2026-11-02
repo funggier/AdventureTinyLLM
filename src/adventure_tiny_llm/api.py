@@ -17,7 +17,7 @@ from uuid import uuid4
 
 import torch
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool
 
 from .config import TinyConfig
 from .contracts import decode_action, validate_observation
@@ -60,6 +60,7 @@ class Decision:
     history: torch.Tensor
     heads: tuple[int, int, int]
     timestamp: float
+    move_mask: tuple[bool, ...] | None = None
 
 
 DECISIONS: dict[str, OrderedDict[str, Decision]] = {}
@@ -70,6 +71,9 @@ class ActRequest(BaseModel):
     agent_id: str = Field(min_length=1, max_length=100)
     observation: list[float]
     deterministic: bool = True
+    # Optional physically available moves supplied by Unity at this location.
+    # None preserves backward compatibility with older clients.
+    valid_moves: list[StrictBool] | None = None
 
 
 class ResetRequest(BaseModel):
@@ -129,6 +133,14 @@ def act(req: ActRequest) -> dict:
         observation = validate_observation(req.observation, CONFIG.observation_size)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    # Validate the mask before mutating a temporal history or issuing an ID.
+    mask = req.valid_moves
+    if mask is not None and (
+        len(mask) != CONFIG.num_move_actions
+        or any(type(allowed) is not bool for allowed in mask)
+        or not any(mask)
+    ):
+        raise HTTPException(status_code=422, detail="valid_moves must contain nine booleans and at least one True")
     with LOCK:
         if req.agent_id not in HISTORIES:
             if len(HISTORIES) >= MAX_AGENTS:
@@ -139,6 +151,9 @@ def act(req: ActRequest) -> dict:
         x = torch.tensor(list(history), dtype=torch.float32).unsqueeze(0)
         with torch.inference_mode():
             move, interact, answer, value = MODEL(x)
+            if mask is not None:
+                legal = torch.tensor(mask, dtype=torch.bool, device=move.device).unsqueeze(0)
+                move = move.masked_fill(~legal, -1e9)
 
             def choose(logits: torch.Tensor) -> int:
                 if req.deterministic:
@@ -149,7 +164,8 @@ def act(req: ActRequest) -> dict:
             response = decode_action(*indices, value=float(value.item())).to_dict()
         action_id = uuid4().hex
         _prune(req.agent_id, monotonic())
-        DECISIONS[req.agent_id][action_id] = Decision(x.detach().clone(), indices, monotonic())
+        DECISIONS[req.agent_id][action_id] = Decision(x.detach().clone(), indices, monotonic(),
+                                                       tuple(mask) if mask is not None else None)
     response["action_id"] = action_id
     response["model_trained"] = bool(TRAINING_METADATA or ONLINE_UPDATES > 0)
     return response
@@ -188,7 +204,8 @@ def experience(req: ExperienceRequest) -> dict:
             return {"accepted": False, "reason": "navigation_intervention",
                     "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES}
         loss = update_from_outcome(MODEL, ONLINE_OPTIMIZER, decision.history,
-                                   decision.heads, req.reward, credit=req.credit)
+                                   decision.heads, req.reward, credit=req.credit,
+                                   move_mask=decision.move_mask)
         ONLINE_UPDATES += 1
         OBSERVED_REWARDS.append(req.reward)
         if len(OBSERVED_REWARDS) > 1000:

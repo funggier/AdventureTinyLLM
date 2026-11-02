@@ -68,6 +68,7 @@ def update_from_outcome(
     reward: float,
     *,
     credit: str = "move",
+    move_mask: tuple[bool, ...] | None = None,
 ) -> float:
     """One genuine on-policy-ish actor-critic update from an observed external reward.
 
@@ -83,6 +84,15 @@ def update_from_outcome(
         raise ValueError("unknown action head for credit")
     index = {"move": 0, "interact": 1, "answer": 2}[credit]
     logits = (move, interact, answer)[index]
+    if index == 0 and move_mask is not None:
+        if len(move_mask) != logits.shape[-1] or not any(move_mask):
+            raise ValueError("invalid action availability stored with decision")
+        legal = torch.tensor(move_mask, dtype=torch.bool, device=logits.device)[None, :]
+        if not move_mask[chosen_heads[0]]:
+            raise ValueError("stored move is not permitted by its original action mask")
+        # Use the SAME masked action distribution used when sampling /act,
+        # otherwise gradient updates would reward a different policy.
+        logits = logits.masked_fill(~legal, -1e9)
     log_prob = Categorical(logits=logits).log_prob(
         torch.tensor([chosen_heads[index]], dtype=torch.long))
     target = torch.tensor([float(max(-2, min(2, reward)))], dtype=torch.float32)
