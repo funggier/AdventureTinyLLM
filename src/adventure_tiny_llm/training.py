@@ -104,7 +104,7 @@ def update_from_outcome(
     target = torch.tensor([float(max(-2, min(2, reward)))], dtype=torch.float32)
     advantage = target - value.detach()
     # A movement outcome credits both where to go and how far to go.
-    # Distance is an independent head conditioned on the same 51-feature state.
+    # Distance is an independent head conditioned on the same 56-feature state.
     # The v4 tactical policy has five heads: move/interact/answer/distance/ability.
     if credit == "move" and len(chosen_heads) == 5:
         distance_log_prob = Categorical(logits=distance).log_prob(

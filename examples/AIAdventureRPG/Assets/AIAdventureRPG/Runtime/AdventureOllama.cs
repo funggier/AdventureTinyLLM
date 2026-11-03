@@ -86,6 +86,10 @@ namespace AIAdventureRPG
                 (actor.Journal==null?"none":actor.Journal.ReportSince(
                     actor.Brain==null?-1f:actor.Brain.ContextResetAt,6))+
                 ". Visible objects: "+observations+
+                ". Spatial map history for currently visible or sensed coordinates: "+
+                (actor.PerceptionMemory==null?"none":
+                    actor.PerceptionMemory.DecisionMapReport(
+                        actor.Vision==null?null:actor.Vision.Visible,4,actor.CombatState))+
                 ". Readable sign or recent sign: "+actor.CurrentSignMessage+
                 ". Visible enemies: "+VisibleMonsterCount(actor)+
                 ". Dialogue: "+actor.CurrentDialogue+". Prior experiences: "+recentMemory+

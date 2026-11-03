@@ -15,13 +15,13 @@ def test_health_untrained_contract():
     assert isinstance(payload["trained"], bool)  # may resume an online checkpoint
     assert payload["training_available"] is False
     assert payload["parameters"] > 95567
-    assert payload["observation_size"] == 51
+    assert payload["observation_size"] == 56
     assert payload["distance_options"] == [1.0, 2.0, 4.0, 6.0, 10.0]
 
 
 def test_act_and_reset_and_invalid_observation():
     client = TestClient(app)
-    observation = [0.0] * 51
+    observation = [0.0] * 56
     response = client.post("/act", json={"agent_id": "test-agent", "observation": observation})
     assert response.status_code == 200
     output = response.json()

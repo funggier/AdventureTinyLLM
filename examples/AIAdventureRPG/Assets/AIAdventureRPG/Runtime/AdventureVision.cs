@@ -11,6 +11,9 @@ namespace AIAdventureRPG
         public class VisibleThing
         {
             public string Type,Name,ReadableText;
+            // Unique for the lifetime of this Unity scene. Only coordinate
+            // snapshots are persisted; object IDs are runtime dedupe keys.
+            public int Identity;
             // Observable material color, not the hidden safe/poison rule.
             public float ColorRedMinusBlue;
             public float Distance;
@@ -55,6 +58,7 @@ namespace AIAdventureRPG
                 if(sign!=null)TrySee(sign.transform.position,"Sign",sign.displayName,
                     sign.transform,CanReadText(sign)?sign.signText:null);
             visible.Sort((a,b)=>a.Distance.CompareTo(b.Distance));
+            GetComponent<AdventurePerceptionMemory>()?.AcceptScan(visible);
         }
         bool InSight(Vector3 location,Transform target,float maxRange)
         {
@@ -81,7 +85,7 @@ namespace AIAdventureRPG
             if(!InSight(location,target,viewRange))return;
             Vector3 offset=location-transform.position;offset.y=0;
             float distance=offset.magnitude;
-            visible.Add(new VisibleThing{Type=kind,Name=name,Distance=distance,
+            visible.Add(new VisibleThing{Type=kind,Name=name,Identity=target.GetEntityId().GetHashCode(),Distance=distance,
                 Bearing=offset/distance,WorldPosition=location,ReadableText=text,
                 ColorRedMinusBlue=colorContrast});
             var journal=GetComponent<AdventureEventJournal>();

@@ -20,7 +20,7 @@ def test_no_mp_forces_no_ability_even_for_stochastic_sampling():
     client=TestClient(app)
     for _ in range(12):
         result=client.post("/act",json={"agent_id":"no-mp-test",
-            "observation":[0.0]*51,"deterministic":False})
+            "observation":[0.0]*56,"deterministic":False})
         assert result.status_code==200
         assert result.json()["ability"]=="none"
     client.post("/reset",json={"agent_id":"no-mp-test"})
@@ -30,7 +30,7 @@ def test_ability_head_receives_actual_experience_gradient():
     model=AdventureTransformer(TinyConfig())
     optim=torch.optim.AdamW(model.parameters(),lr=.0005)
     before=model.ability_head.weight.detach().clone()
-    obs=torch.zeros((1,2,51))
+    obs=torch.zeros((1,2,56))
     obs[...,31]=1
     obs[...,40:43]=1
     loss=update_from_outcome(model,optim,obs,(0,0,0,0,1),.4,

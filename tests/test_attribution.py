@@ -10,7 +10,7 @@ def test_explicit_action_id_replay_reset_and_agent_isolation(tmp_path, monkeypat
     monkeypatch.setattr(api, "ONLINE_ENABLED", True)
     monkeypatch.setattr(api, "ONLINE_OPTIMIZER", torch.optim.AdamW(api.MODEL.parameters(), lr=1e-5))
     monkeypatch.setattr(api, "ONLINE_OUTPUT", str(tmp_path / "online.pt"))
-    req = {"agent_id": "credit-01", "observation": [0.0]*51}
+    req = {"agent_id": "credit-01", "observation": [0.0]*56}
     first = client.post("/act", json=req).json()
     second = client.post("/act", json=req).json()
     assert first["action_id"] != second["action_id"]
@@ -41,7 +41,7 @@ def test_negative_idle_boredom_reward_updates_only_issued_move_action(tmp_path, 
     monkeypatch.setattr(api, "ONLINE_ENABLED", True)
     monkeypatch.setattr(api, "ONLINE_OPTIMIZER", torch.optim.AdamW(api.MODEL.parameters(), lr=1e-5))
     monkeypatch.setattr(api, "ONLINE_OUTPUT", str(tmp_path / "idle.pt"))
-    request = {"agent_id": "idle-qa", "observation": [0.0] * 51, "deterministic": False}
+    request = {"agent_id": "idle-qa", "observation": [0.0] * 56, "deterministic": False}
     action = client.post("/act", json=request).json()
     payload = {"agent_id": "idle-qa", "action_id": action["action_id"],
                "credit": "move", "reward": -0.008,
@@ -62,7 +62,7 @@ def test_action_expiry_and_credit_validation(monkeypatch):
     monkeypatch.setattr(api, "ONLINE_ENABLED", True)
     monkeypatch.setattr(api, "ONLINE_OPTIMIZER", torch.optim.AdamW(api.MODEL.parameters(), lr=1e-5))
     output = client.post("/act",json={
-        "agent_id":"expire-02","observation":[0.0]*51
+        "agent_id":"expire-02","observation":[0.0]*56
     }).json()
     action_id=output["action_id"]
     prior=api.DECISIONS["expire-02"][action_id]

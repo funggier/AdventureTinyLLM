@@ -72,6 +72,7 @@ namespace AIAdventureRPG
         [Min(1f)]public float healAmount=30f;
         AdventureCombatVFX combatEffects;
         public AdventureCombatState CombatState{get;private set;}
+        public AdventurePerceptionMemory PerceptionMemory{get;private set;}
         AdventurePickup noticedThorn;
         float noticedThornDistance,moveStartDamageEvents;
         readonly System.Collections.Generic.HashSet<int> evadedThorns=
@@ -92,7 +93,25 @@ namespace AIAdventureRPG
         Rigidbody body;
         Vector3 move;
         float dialogueExpires,interactCooldown,nextBlockedFeedback;
-        public void Initialize(AdventureWorld world) {World=world;Stats=GetComponent<AdventureStats>();Brain=GetComponent<AdventureBrain>();Vision=GetComponent<AdventureVision>();body=GetComponent<Rigidbody>();}
+        public void Initialize(AdventureWorld world)
+        {
+            World=world;
+            Stats=GetComponent<AdventureStats>();
+            Brain=GetComponent<AdventureBrain>();
+            Vision=GetComponent<AdventureVision>();
+            body=GetComponent<Rigidbody>();
+            CombatState=GetComponent<AdventureCombatState>();
+            BindPerceptionMemory();
+        }
+        void BindPerceptionMemory()
+        {
+            if(PerceptionMemory!=null)
+                PerceptionMemory.ImportantChange-=OnPerceptionAlert;
+            PerceptionMemory=GetComponent<AdventurePerceptionMemory>();
+            if(PerceptionMemory==null)
+                PerceptionMemory=gameObject.AddComponent<AdventurePerceptionMemory>();
+            PerceptionMemory.ImportantChange+=OnPerceptionAlert;
+        }
         void Awake()
         {
             Stats=GetComponent<AdventureStats>();Brain=GetComponent<AdventureBrain>();
@@ -104,9 +123,25 @@ namespace AIAdventureRPG
             if(combatEffects==null)combatEffects=gameObject.AddComponent<AdventureCombatVFX>();
             CombatState=GetComponent<AdventureCombatState>();
             if(CombatState==null)CombatState=gameObject.AddComponent<AdventureCombatState>();
+            BindPerceptionMemory();
             if(Stats!=null)Stats.OutcomeObserved+=OnObservedOutcome;
         }
-        void OnDestroy(){if(Stats!=null)Stats.OutcomeObserved-=OnObservedOutcome;}
+        void OnDestroy()
+        {
+            if(Stats!=null)Stats.OutcomeObserved-=OnObservedOutcome;
+            if(PerceptionMemory!=null)PerceptionMemory.ImportantChange-=OnPerceptionAlert;
+        }
+        void OnPerceptionAlert(AdventurePerceptionMemory.PerceptionAlert alert)
+        {
+            // Awareness itself carries NO reward; it only interrupts a stale
+            // finite travel so the current policy may reconsider the scene.
+            if(mode==ControlMode.Manual||alert==null)return;
+            StopAIMovement("new perception");
+            if(mode==ControlMode.Tiny)
+                GetComponent<AdventureTinyController>()?.ReconsiderForPerception();
+            else if(mode==ControlMode.Ollama)
+                Brain?.ReconsiderForPerception(alert);
+        }
         void OnObservedOutcome(string summary)
         {
             if(Journal!=null)Journal.Record(AdventureEventJournal.Kind.Outcome,

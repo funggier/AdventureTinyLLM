@@ -48,6 +48,7 @@ namespace AIAdventureRPG
         bool checkingHealth;
         int requestGeneration;
         public bool InFlight{get;private set;}
+        UnityWebRequest activeActRequest;
         public string LastActionId{get;private set;}="";
         public string LastObservation{get;private set;}="";
         public int ObservedSigns{get;private set;}
@@ -186,9 +187,9 @@ namespace AIAdventureRPG
                     try
                     {
                         var data=JsonUtility.FromJson<HealthResponse>(request.downloadHandler.text);
-                        if(data==null||data.status!="ready"||data.observation_size!=51||
-                           data.action_protocol!="explicit-action-id-v5-tactical")
-                            throw new Exception("Tiny API requires 51-feature tactical context policy; restart updated service");
+                        if(data==null||data.status!="ready"||data.observation_size!=56||
+                           data.action_protocol!="explicit-action-id-v6-spatial")
+                            throw new Exception("Tiny API requires 56-feature spatial perception policy; restart updated service");
                         ServiceAvailable=true;
                         TrainingAvailable=data.training_available;
                         TrainingSteps=data.training_steps;
@@ -506,6 +507,19 @@ namespace AIAdventureRPG
             }
             resetting=false;
         }
+        public int ReactiveReplans{get;private set;}
+        public void ReconsiderForPerception()
+        {
+            if(actor==null||actor.mode!=ControlMode.Tiny)return;
+            // Discard stale in-flight policy responses and one-time action
+            // attribution. No reward is assigned for mere detection.
+            requestGeneration++;
+            activeActRequest?.Abort();
+            LastActionId="";
+            nextDecision=Time.time;
+            ReactiveReplans++;
+            Status="New object detected: refreshing Tiny observation";
+        }
         public void Tick()
         {
             if(actor==null||actor.World==null)return;
@@ -525,7 +539,7 @@ namespace AIAdventureRPG
         }
         public float[] Encode()
         {
-            var v=new float[51];
+            var v=new float[56];
             if(actor==null||actor.World==null)return v;
             Vector3 p=actor.transform.position,forward=actor.transform.forward;
             float width=Mathf.Max(1,actor.World.Width),depth=Mathf.Max(1,actor.World.Depth);
@@ -608,6 +622,25 @@ namespace AIAdventureRPG
                 v[50]=combat.NearestVisibleThornDistance<999f?
                     Mathf.Clamp01(combat.NearestVisibleThornDistance/12f):1f;
             }
+            var memory=actor.PerceptionMemory;
+            if(memory!=null)
+            {
+                // The past five coordinate snapshots are looked up at the
+                // policy DECISION moment; no stale cache from prior actions.
+                v[51]=memory.HasRecentAlert()?1f:0f;
+                Vector3 focus;int objectId;
+                if(memory.TryDecisionFocus(actor.Vision==null?null:actor.Vision.Visible,
+                    combat,out focus,out objectId))
+                {
+                    var history=memory.HistoryAt(focus);
+                    int changes=memory.ChangeCountAt(focus);
+                    v[52]=Mathf.Clamp01(history.Count/5f);
+                    v[53]=Mathf.Clamp01(changes/5f);
+                    v[54]=history.Count>1?
+                        Mathf.Clamp01(1f-changes/(float)(history.Count-1)):0f;
+                    v[55]=memory.HasMovedObject(objectId)?1f:0f;
+                }
+            }
             return v;
         }
         void RefreshBoundaryEscape()
@@ -663,11 +696,13 @@ namespace AIAdventureRPG
                     deterministic=!trainInRealGame&&deterministic,valid_moves=legal}));
             using(var request=new UnityWebRequest(apiEndpoint.TrimEnd('/')+"/act","POST"))
             {
+                activeActRequest=request;
                 request.uploadHandler=new UploadHandlerRaw(body);
                 request.downloadHandler=new DownloadHandlerBuffer();
                 request.SetRequestHeader("Content-Type","application/json");
                 request.timeout=timeoutSeconds;
                 yield return request.SendWebRequest();
+                if(ReferenceEquals(activeActRequest,request))activeActRequest=null;
                 if(generation!=requestGeneration||actor==null||actor.mode!=ControlMode.Tiny)
                 {
                     InFlight=false;

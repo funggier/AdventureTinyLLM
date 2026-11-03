@@ -23,10 +23,10 @@ def test_distance_actions_are_finite_and_idle_is_zero():
 def test_act_returns_finite_move_without_training():
     client = TestClient(app)
     state = client.get("/health").json()
-    assert state["observation_size"] == 51
-    assert state["action_protocol"] == "explicit-action-id-v5-tactical"
+    assert state["observation_size"] == 56
+    assert state["action_protocol"] == "explicit-action-id-v6-spatial"
     response = client.post("/act", json={
-        "agent_id": "test-distance", "observation": [0.0] * 51})
+        "agent_id": "test-distance", "observation": [0.0] * 56})
     assert response.status_code == 200
     action = response.json()
     assert action["move_distance"] in (0.0,) + DISTANCES
@@ -40,7 +40,7 @@ def test_real_move_reward_updates_direction_and_distance_head():
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.0005)
     before_direction = model.move_head.weight.detach().clone()
     before_distance = model.distance_head.weight.detach().clone()
-    observation = torch.zeros((1, 2, 51))
+    observation = torch.zeros((1, 2, 56))
     observation[..., 31] = 1.0
     loss = update_from_outcome(
         model, optimizer, observation, (1, 0, 0, 3, 0), -0.8, credit="move")

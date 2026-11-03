@@ -1,4 +1,4 @@
-"""Package exact committed AdventureTinyLLM v0.2.0 source, docs, Unity example.
+"""Package exact committed AdventureTinyLLM v0.3.0 source, docs, Unity example.
 
 Source is extracted from HEAD, not from potentially unsaved/dirty files.
 Never includes checkpoints, Unity Library/Temp, Python virtual env, or logs.
@@ -12,8 +12,8 @@ from pathlib import Path
 import subprocess
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
-VERSION = "V0.2.0"
-ZIP_TIMESTAMP = (2026, 11, 2, 0, 0, 0)
+VERSION = "V0.3.0"
+ZIP_TIMESTAMP = (2026, 11, 3, 0, 0, 0)
 
 
 def git(root: Path, *args: str) -> bytes:
@@ -43,7 +43,8 @@ def package(root: Path, output: Path) -> list[Path]:
         if v
     ]
     assert {"LICENSE", "README.md", "pyproject.toml",
-            "docs/REWARD_POLICY_TH.md", "docs/releases/v0.2.0.md",
+            "docs/REWARD_POLICY_TH.md", "docs/SPATIAL_MEMORY_TH.md",
+            "docs/releases/v0.3.0.md",
             "examples/AIAdventureRPG/README.md"}.issubset(paths)
     example = [p for p in paths if p.startswith("examples/AIAdventureRPG/")]
     unity_sources = [p for p in example if p.startswith(

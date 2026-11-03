@@ -65,7 +65,7 @@ class Decision:
 
 
 DECISIONS: dict[str, OrderedDict[str, Decision]] = {}
-app = FastAPI(title="AdventureTinyLLM", version="0.2.0", description="Tiny Transformer with explicit action attribution")
+app = FastAPI(title="AdventureTinyLLM", version="0.3.0", description="Tiny Transformer with explicit action attribution")
 
 
 class ActRequest(BaseModel):
@@ -120,7 +120,7 @@ def health() -> dict:
         "observed_events": len(OBSERVED_REWARDS),
         "text_observations": sum(len(records) for records in TEXT_OBSERVATIONS.values()),
         "checkpoint": CHECKPOINT_PATH or None,
-        "action_protocol": "explicit-action-id-v5-tactical",
+        "action_protocol": "explicit-action-id-v6-spatial",
         "ability_options": list(ABILITIES),
         "distance_options": list(DISTANCES),
         "action_ttl_seconds": ACTION_TTL_SECONDS,
@@ -225,7 +225,7 @@ def experience(req: ExperienceRequest) -> dict:
              seed=CONFIG.seed,
              metrics={"source": "Unity observed outcomes",
                       "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES,
-                      "attribution": "explicit-action-id-v5-tactical",
+                      "attribution": "explicit-action-id-v6-spatial",
                       "mean_recent_event_reward": sum(OBSERVED_REWARDS) / len(OBSERVED_REWARDS)})
         return {"accepted": True, "action_id": req.action_id,
                 "online_updates": PRIOR_ONLINE_UPDATES + ONLINE_UPDATES,

@@ -1,4 +1,4 @@
-"""Stable 51-feature observation contract shared with the Unity Tiny adapter.
+"""Stable 56-feature observation contract shared with the Unity Tiny adapter.
 
 Only self-state and visible geometry enter the observation. Outcome deltas are
 from previous *observed* interactions; no game reward-rule lookup is supplied.
@@ -33,8 +33,11 @@ FEATURES = (
     "in_combat", "low_hp", "low_mp", "nearest_monster_distance_norm",
     "monster_bearing_x", "monster_bearing_z", "monster_winding_up",
     "visible_thorn_distance_norm",
+    "recent_perception_alert", "coordinate_history_count_norm",
+    "coordinate_change_count_norm", "coordinate_stability_norm",
+    "current_object_ever_moved",
 )
-assert len(FEATURES) == 51
+assert len(FEATURES) == 56
 
 def pack(**kwargs: float) -> list[float]:
     unknown = set(kwargs).difference(FEATURES)

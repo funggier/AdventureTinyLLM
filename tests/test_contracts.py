@@ -5,7 +5,7 @@ from adventure_tiny_llm.contracts import MOVEMENTS, decode_action, validate_obse
 
 
 def test_numeric_observation():
-    assert len(validate_observation([0.0]*51)) == 51
+    assert len(validate_observation([0.0]*56)) == 56
     with pytest.raises(ValueError):
         validate_observation([0.0]*31)
     with pytest.raises(ValueError):

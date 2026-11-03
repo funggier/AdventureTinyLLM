@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass
 from math import isfinite
 from typing import Sequence
 
-OBSERVATION_SIZE = 51
+OBSERVATION_SIZE = 56
 MOVEMENTS: tuple[tuple[float, float], ...] = (
     (0.0, 0.0),  # idle
     (0.0, 1.0),  # north

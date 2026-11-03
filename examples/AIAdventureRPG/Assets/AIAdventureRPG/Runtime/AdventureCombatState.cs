@@ -61,6 +61,10 @@ namespace AIAdventureRPG
                 Vector3 delta=monster.transform.position-transform.position;
                 delta.y=0f;
                 float distance=delta.magnitude;
+                // A monster behind the camera still belongs to the 360-degree
+                // combat detector. Proximity sightings may trigger one reactive
+                // replan, while ordinary vision remains forward/occlusion based.
+                actor.PerceptionMemory?.ObserveProximityMonster(monster,distance);
                 if(distance<best){best=distance;nearest=monster;
                     bearing=distance>.001f?delta/distance:Vector3.zero;}
             }

@@ -1,13 +1,13 @@
 # AIAdventureRPG / AdventureTinyLLM — เกณฑ์และวิธีคำนวณ Reward
 
-**Release v0.2.0 · 2026-11-02 · สถานะ: ใช้งานใน Unity จริงและทดสอบ**
+**Release v0.3.0 · 2026-11-03 (56-feature spatial-memory model; previous v0.2.0 remains available) · สถานะ: ใช้งานใน Unity จริงและทดสอบ**
 
 เอกสารนี้อธิบาย **กฎในซอร์สโค้ดจริง** ไม่ใช่แนวคิดในอนาคต จุดที่แก้ค่ารางวัลคือ
-`Assets/AIAdventureRPG/Runtime/AdventureRewardPolicy.cs` (ใน Unity Example ที่แนบ Release) และการสร้างเหตุการณ์จริงอยู่ใน `AdventureStats.cs`, `AdventureAgent.cs`, `AdventureMonster.cs`, `AdventureCombatState.cs`, `AdventureTinyController.cs`.
+`Assets/AIAdventureRPG/Runtime/AdventureRewardPolicy.cs` (ใน Unity Example working tree เวอร์ชันกำลังพัฒนา; Release v0.2.0 เดิมไม่ถูกแก้) และการสร้างเหตุการณ์จริงอยู่ใน `AdventureStats.cs`, `AdventureAgent.cs`, `AdventureMonster.cs`, `AdventureCombatState.cs`, `AdventureTinyController.cs`.
 
 ## 1. หลักการตัดสิน: รางวัลจากผลจริง ไม่ใช่ความตั้งใจ
 
-1. ตัวละคร **รับข้อมูลก่อนตัดสินใจ**: HP/MP, สถานะ Combat, ตำแหน่ง, สิ่งที่เห็น, ทิศและระยะของมอนสเตอร์ในวงตรวจจับ, การง้างโจมตี, หนามที่เห็นจริง และความพร้อมใช้สกิล (รวม 51 ค่า)
+1. ตัวละคร **รับข้อมูลก่อนตัดสินใจ**: HP/MP, สถานะ Combat, ตำแหน่ง, สิ่งที่เห็น, ทิศและระยะของมอนสเตอร์ในวงตรวจจับ, การง้างโจมตี, หนามที่เห็นจริง และความพร้อมใช้สกิล (รวม 56 ค่า; 5 ค่าใหม่สรุปแผนที่ความจำ)
 2. Tiny `POST /act` เลือกการกระทำจากโมเดลและคืน `action_id`; `TRAIN TINY` ใช้การสุ่มตามนโยบาย, `USE TRAINED` ใช้โมเดลโดยไม่อัปเดตน้ำหนัก
 3. Unity ทำคำสั่ง **ในโลกเกม**: เดินเป็นระยะทางจำกัด, โจมตี, หลบ, เก็บสมุนไพร/MP, ตอบ NPC หรือใช้สกิล
 4. เมื่อมีเหตุการณ์จริง Unity เก็บ **snapshot ก่อนเกิดเหตุการณ์** แล้วบันทึก `pre_hp`, `pre_mp`, `max_mp`, `hp_low_ratio`, `mp_low_ratio`, `HP/MP/Happiness/Boredom delta`, ชื่อเหตุการณ์และ `death=true` ถ้าตาย
@@ -36,8 +36,8 @@ Tiny รับสถานะผ่าน numerical features **43–50**; Ollama
 |---|---:|---|
 | **ตาย** | **−2.00** | ใช้ทันทีเป็นค่าสูงสุดด้านโทษ ไม่รวมคะแนนอื่นซ้ำ |
 | **ฆ่ามอนสเตอร์** (โจมตีปกติ) | **+1.45** | มอนสเตอร์ตายจริง; ไม่เพิ่มคะแนน Normal Hit อีกครั้งจาก event เดียวกัน |
-| โจมตีปกติโดน | +0.25 | ทำ HP ของมอนสเตอร์ลดจริง |
-| ใช้สกิลโจมตีโดน | +0.30 ต่อเป้าหมาย | โบนัส `min(0.50, hits×0.30)` |
+| โจมตีปกติโดน | +0.35 | ทำ HP ของมอนสเตอร์ลดจริง |
+| ใช้สกิลโจมตีโดน | +0.40 ต่อเป้าหมาย | โบนัส `min(0.65, hits×0.40)` |
 | ใช้สกิลฆ่ามอนสเตอร์ | +1.45 เพิ่มจากโบนัส Hit | การฆ่าหลายตัวมีโบนัสเพิ่มสูงสุด +0.25 ก่อน clamp |
 | **หลบการโจมตีมอนสเตอร์สำเร็จ** | +0.35 | มอนสเตอร์ง้างโจมตีจริง; ตัวละครเคลื่อนอย่างน้อย **0.6 หน่วย** และพ้นระยะก่อนจังหวะตี |
 | เห็นหนามแล้วหลบสำเร็จ | +0.28 | เห็นหนาม **ก่อนเริ่มเดิน**, เดินห่างเพิ่มอย่างน้อย **1.25 หน่วย**, ไม่มี damage ระหว่างการเคลื่อนที่; จำกัดหนึ่งครั้งต่อหนาม |
@@ -81,11 +81,11 @@ elif attempted_MP_pickup_or_reply:
     score -= 0.12
 
 if normal_kill: score += 1.45
-else if normal_hit: score += 0.25
+else if normal_hit: score += 0.35
 
 if damaging_ability:
     if kills > 0: score += 1.45 + min(0.25, (kills-1) × 0.12)
-    if hits > 0:  score += min(0.50, hits × 0.30)
+    if hits > 0:  score += min(0.65, hits × 0.40)
     else:         score -= 0.22  # except Heal
 
 score += ΔHappiness × 0.002 - ΔBoredom × 0.0002
@@ -102,10 +102,10 @@ reward = clamp(score, -2.00, +1.95)
 
 | กรณี | การคำนวณคะแนนหลัก | ผล |
 |---|---|---:|
-| โจมตีปกติโดน 1 ครั้ง | +0.25 | **+0.25** |
+| โจมตีปกติโดน 1 ครั้ง | +0.35 | **+0.35** |
 | โจมตีปกติฆ่ามอนสเตอร์ | +1.45 | **+1.45** |
-| Special ตีโดน 1 ตัว ใช้ 12 MP | +0.30 − (12×0.002) | **+0.276** |
-| Special ฆ่า 1 ตัว ใช้ 12 MP | +1.45 +0.30 −0.024 | **+1.726** |
+| Special ตีโดน 1 ตัว ใช้ 12 MP | +0.40 − (12×0.002) | **+0.376** |
+| Special ฆ่า 1 ตัว ใช้ 12 MP | +1.45 +0.40 −0.024 | **+1.826** |
 | Arc Pulse ใช้ 20 MP และไม่โดน | −0.22 − (20×0.002) | **−0.260** |
 | เสีย HP 10 เมื่อ HP ก่อนโดน = 65 | −10×0.04 | **−0.400** |
 | เสีย HP 10 เมื่อ HP ก่อนโดน = 15 | −10×0.075 | **−0.750** |
@@ -150,9 +150,9 @@ reward = clamp(score, -2.00, +1.95)
 
 ## 8. การตรวจสอบและข้อควรระวัง
 
-- Unity EditMode: **69/69** ผ่านในการตรวจล่าสุด (สถานะ/เงื่อนไขคะแนน/รีเซ็ต Ollama)
+- Unity EditMode: **77/77** ผ่านในการตรวจล่าสุด (รวม FIFO, 9/18 hysteresis, map decision, reactive replan และคะแนนโจมตีที่เพิ่มใหม่)
 - Python pytest: ทดสอบการออกคำสั่ง โปรโตคอล action ID, action mask, optimizer, checkpoint; ต้องรันอีกครั้งก่อนสร้าง Release
-- รอบตรวจ Play Mode ที่ผ่านมา: Tiny 51 features, ตัวอย่าง `USE TRAINED` ไม่มี API action failure, ได้ **66 online training updates** ใน checkpoint ที่เครื่องทดสอบ
+- รอบตรวจ Play Mode ปัจจุบัน: Tiny **56 features** ทดสอบ Train และ `USE TRAINED` ได้จริงโดยไม่พบ API action failure ในช่วงตรวจ; checkpoint รุ่น 51 features ที่ฝึกไว้ 17,469 steps ถูกเก็บสำรองก่อนเริ่มฝึกใหม่
 - ผลการทดสอบ API สำเร็จหรือจำนวน updates **ยังไม่พิสูจน์** ว่านโยบาย AI เล่นเก่ง ควรประเมินหลาย seed/episode โดยเทียบกับ Random และ handcrafted baseline
 - บางเหตุการณ์ยังต้องปรับ credit assignment โดยเฉพาะสถานการณ์ที่ AI สั่งหลายอย่างพร้อมกัน; อย่ามองคะแนนรางวัลว่าเป็นการพิสูจน์ความสามารถ
 - Snapshot ของเกม Unity ใน Release เป็น **ตัวอย่าง integration ที่พึ่งพา HMGF.Core / HMGF.World / HMGF.Presentation** จากโปรเจกต์ต้นทาง ไม่ใช่ Unity project เปิดเดี่ยวได้ทันที

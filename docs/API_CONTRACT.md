@@ -1,4 +1,4 @@
-# AdventureTinyLLM REST API — v0.2.0 Tactical
+# AdventureTinyLLM REST API — v0.3.0 Spatial Reactive
 
 The service listens on **127.0.0.1:8765** with no authentication. **Do not expose it over LAN/WAN**. The integration example uses Unity 6000.6.7f1 and is in `examples/AIAdventureRPG`.
 
@@ -6,7 +6,7 @@ The service listens on **127.0.0.1:8765** with no authentication. **Do not expos
 
 | Environment | Meaning |
 |---|---|
-| `ADVENTURE_TINY_CHECKPOINT` | Optional compatible v4/51-input `.pt` checkpoint to resume |
+| `ADVENTURE_TINY_CHECKPOINT` | Optional compatible v5/56-input `.pt` checkpoint to resume |
 | `ADVENTURE_TINY_ONLINE_TRAIN=1` | Explicit opt-in to neural weight updates from Unity |
 | `ADVENTURE_TINY_ONLINE_OUTPUT` | Destination for atomic online checkpoints (default `checkpoints/tiny-unity-online.pt`) |
 
@@ -14,7 +14,7 @@ Use `powershell -ExecutionPolicy Bypass -File .\scripts\start_api.ps1 -EnableOnl
 
 ## GET /health
 
-Returns `status="ready"`, `observation_size=51`, `action_protocol="explicit-action-id-v5-tactical"`, `training_available`, `trained`, `training_steps`, `online_updates`, `parameters`, `ability_options`, `distance_options=[1,2,4,6,10]`, and limits. **A fresh model can be ready but untrained**.
+Returns `status="ready"`, `observation_size=56`, `action_protocol="explicit-action-id-v6-spatial"`, `training_available`, `trained`, `training_steps`, `online_updates`, `parameters`, `ability_options`, `distance_options=[1,2,4,6,10]`, and limits. **A fresh model can be ready but untrained**.
 
 ## POST /act
 
@@ -27,14 +27,16 @@ Request:
   "valid_moves": [true, true, true, true, true, true, true, true, true]
 }
 ```
-**Note:** The `observation` shown above is truncated for readability; a real request **must contain 51 finite float values**, ordered as in `src/adventure_tiny_llm/observation.py`. `valid_moves` is optional; if provided, it must be nine booleans with at least one `true`.
+**Note:** The `observation` shown above is truncated for readability; a real request **must contain 56 finite float values**, ordered as in `src/adventure_tiny_llm/observation.py`. `valid_moves` is optional; if provided, it must be nine booleans with at least one `true`.
 
 Response fields include `action_id` (unique, one-use ID), `move_x`, `move_z`, `move_distance` (0 if idle, otherwise 1/2/4/6/10 world units), `face_x`, `face_z`, `interact`, `answer` (none/good/bad), `ability` (none/special/arc/heal), `value`, and `model_trained`. The model samples its learned categorical distributions when `deterministic=false` and uses argmax when true.
 
 Availability masks:
 - Movement: optional nine-boolean mask is applied before sampling/argmax and stored with each action ID for consistent policy gradients.
 - Ability: always derived from observation features 40, 41, 42 (can special, can arc, can heal); if an MP/HP condition fails, that ability is masked.
-- Additional tactical observation features 43..50: in combat, low HP, low MP, closest sensed monster distance and bearing X/Z, monster winding up, distance to actually visible thorn.
+- Tactical features 43..50: in combat, low HP, low MP, closest sensed monster distance and bearing X/Z, monster winding up, distance to actually visible thorn.
+- Spatial memory features 51..55: recent new-object detection, history count at the currently observed coordinate, number of changes, stability ratio, and whether the current object previously moved. Unity reads up to five FIFO history entries per coordinate when encoding an action.
+- Perception hysteresis: a new object entering the 9-unit inner ring can interrupt an ongoing command, but it must exit past 18 units before a repeat entry can interrupt again. Observations themselves carry no reward.
 - The model never receives hidden world results as observation features. The Unity `AdventureCombatState` determines the configurable 9-unit default detection ring and HP/MP thresholds.
 
 ## POST /experience
@@ -77,7 +79,7 @@ The **RESET OLLAMA CONTEXT** button in the Unity HUD is **separate**: it clears 
 
 ## Compatibility
 
-This v4 model accepts **51 input features** and is not weight-compatible with earlier 32/40/43-feature checkpoints. The 43-feature checkpoint is archived separately and is **not shipped in this source/example release**. Use `GET /health` to verify schema/version before selecting a Unity AI mode.
+This development v5 model accepts **56 input features** and is not weight-compatible with earlier 32/40/43/51-feature checkpoints. The trained 51-feature checkpoint (17,469 steps at migration) is preserved under `checkpoints/legacy/tiny-unity-pre-spatial-v4-51features-2026-11-03.pt` locally and is not included in the old v0.2.0 downloadable release. Use `GET /health` to verify schema/version before selecting a Unity AI mode.
 
 ## Limits and safety
 

@@ -186,6 +186,7 @@ namespace AIAdventureRPG
                 GUILayout.Label("This mode does not train Tiny AI.",small);
                 if(actor.Brain!=null)
                 {
+                    GUILayout.Label("Reactive replans "+actor.Brain.ReactiveReplans,small);
                     GUILayout.Label("Ollama memory: "+actor.Brain.Memory.Count+
                         " | Resets: "+actor.Brain.ResetCount,small);
                     if(GUILayout.Button("RESET OLLAMA CONTEXT",button,GUILayout.Height(32f)))
@@ -197,6 +198,7 @@ namespace AIAdventureRPG
                 GUILayout.Label(tiny.trainInRealGame?
                     "TRAIN TINY  |  WEIGHTS UPDATING":"USE TRAINED TINY  |  WEIGHTS FROZEN",title);
                 GUILayout.Label(tiny.Status,label);
+                GUILayout.Label("Reactive replans "+tiny.ReactiveReplans,small);
                 GUILayout.Label(tiny.ServiceStatus,small);
                 GUILayout.Label("Learning steps "+tiny.TrainingSteps+
                     " | Accepted "+tiny.AcceptedOutcomes+
@@ -235,6 +237,22 @@ namespace AIAdventureRPG
                 GUILayout.Label(actor.Journal.LastMovementReport,small);
                 GUILayout.Label("OBSERVED EVENTS (X/Z COORDINATES)",label);
                 GUILayout.Label(actor.Journal.Report(5),small);
+            }
+            if(actor.PerceptionMemory!=null)
+            {
+                var memory=actor.PerceptionMemory;
+                GUILayout.Space(5f);
+                GUILayout.Label("SPATIAL MEMORY  |  5 FIFO snapshots / coordinate",label);
+                GUILayout.Label("Reactive "+memory.AlertCount+" | Tracked "+memory.TrackedObjects+
+                    " | Cells "+memory.HistoryCellCount+
+                    " | Rings "+memory.alertRadius.ToString("F0")+"/"+
+                    memory.rearmRadius.ToString("F0")+" units",small);
+                if(memory.LastAlert!=null)
+                    GUILayout.Label("Last discovery: "+memory.LastAlert.kind+" "+
+                        memory.LastAlert.name+" | "+memory.LastAlert.history,small);
+                if(actor.Vision!=null)
+                    GUILayout.Label("Coordinate history: "+
+                        memory.DecisionMapReport(actor.Vision.Visible,2,actor.CombatState),small);
             }
             GUILayout.Space(6f);
             GUILayout.Label("VISION: "+(actor.Vision!=null?

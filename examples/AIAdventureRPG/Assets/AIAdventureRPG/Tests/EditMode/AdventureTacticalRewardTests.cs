@@ -28,6 +28,19 @@ namespace AIAdventureRPG.Tests
         }
 
         [Test]
+        public void IncreasedHitIncentiveKeepsKillBonusDominant()
+        {
+            float ordinary=Score("StrikeMonster"+PreNormal,Vector4.zero);
+            float special=Score("Ability SpecialAttack hits=1 kills=0 healed=0.0"+
+                PreNormal,new Vector4(0,-12,0,0));
+            float kill=Score("DefeatMonster"+PreNormal,Vector4.zero);
+            Assert.That(ordinary,Is.EqualTo(.35f).Within(.001f));
+            Assert.That(special,Is.EqualTo(.376f).Within(.001f));
+            Assert.That(kill,Is.GreaterThan(ordinary));
+            Assert.That(kill,Is.GreaterThan(special));
+        }
+
+        [Test]
         public void RealDodgeAndSeenThornEscapeAreGoodButContactIsBad()
         {
             Assert.That(Score("DodgeMonster Boar"+PreNormal,Vector4.zero),Is.GreaterThan(0f));

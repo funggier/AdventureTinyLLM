@@ -105,6 +105,23 @@ namespace AIAdventureRPG
             try{File.WriteAllLines(memoryPath,memory.ToArray());}
             catch(IOException e){Debug.LogWarning("Adventure memory save: "+e.Message);}
         }
+        public int ReactiveReplans{get;private set;}
+        public void ReconsiderForPerception(AdventurePerceptionMemory.PerceptionAlert alert)
+        {
+            var actor=GetComponent<AdventureAgent>();
+            if(actor==null||actor.mode!=ControlMode.Ollama||alert==null)return;
+            modeGeneration++;
+            ollama?.CancelPending();
+            Waiting=false;
+            current=default;
+            nextDecision=Time.time;
+            ReactiveReplans++;
+            Remember("New nearby "+alert.kind+" "+alert.name+
+                " at x="+alert.position.x.ToString("F1")+
+                " z="+alert.position.z.ToString("F1")+
+                "; previous coordinate observations: "+alert.history);
+            Status="New object detected: refreshing Ollama context";
+        }
         public void Tick(AdventureAgent actor)
         {
             if(actor==null||Waiting||actor.AIMoveActive||Time.time<nextDecision)return;

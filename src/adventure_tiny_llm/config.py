@@ -8,9 +8,9 @@ from pathlib import Path
 
 @dataclass(frozen=True, slots=True)
 class TinyConfig:
-    schema_version: int = 4
+    schema_version: int = 5
     seed: int = 1234
-    observation_size: int = 51
+    observation_size: int = 56
     max_context: int = 32
     d_model: int = 64
     n_layers: int = 2
@@ -25,7 +25,7 @@ class TinyConfig:
     init_std: float = 0.02
 
     def validate(self) -> "TinyConfig":
-        if self.schema_version != 4:
+        if self.schema_version != 5:
             raise ValueError("unsupported config schema version")
         for key in ("observation_size", "max_context", "d_model", "n_layers",
                     "n_heads", "n_kv_heads", "d_ff", "num_move_actions",
@@ -40,7 +40,7 @@ class TinyConfig:
             raise ValueError("invalid random initialization parameters")
         if (self.num_move_actions, self.num_distance_actions, self.num_interact_actions,
             self.num_answer_actions, self.num_ability_actions) != (9, 5, 2, 3, 4):
-            raise ValueError("v4 action encoding requires (9, 5, 2, 3, 4) output heads")
+            raise ValueError("v5 action encoding requires (9, 5, 2, 3, 4) output heads")
         return self
 
     def to_dict(self) -> dict:

@@ -1,3 +1,5 @@
+> Legacy baseline (2026-11-02): for CURRENT 9/18-unit reactive memory, 56-feature Tiny policy and stronger hit rewards (+0.35/+0.40), see REACTIVE_PERCEPTION_AND_MAP_TH.md.
+
 # ระบบสถานะการต่อสู้และรางวัล Tiny AI
 
 อัปเดต 2 พฤศจิกายน 2026 — ใช้กับโปรเจกต์ `AIAdventureRPG`

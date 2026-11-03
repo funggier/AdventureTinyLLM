@@ -15,8 +15,8 @@ namespace AIAdventureRPG
         public const float CriticalMPPercent=.20f;
         public const float Death=-2f;
         public const float Kill=1.45f;
-        public const float NormalHit=.25f;
-        public const float SkillHit=.30f;
+        public const float NormalHit=.35f;
+        public const float SkillHit=.40f;
         public const float Dodge=.35f;
         public const float AvoidThorn=.28f;
         public const float NormalMiss=-.20f;
@@ -103,7 +103,7 @@ namespace AIAdventureRPG
                 int hits=Mathf.RoundToInt(ReadNumber(eventText,"hits",0));
                 int kills=Mathf.RoundToInt(ReadNumber(eventText,"kills",0));
                 if(kills>0)score+=Kill+Mathf.Min(.25f,(kills-1)*.12f);
-                if(hits>0)score+=Mathf.Min(.5f,hits*SkillHit);
+                if(hits>0)score+=Mathf.Min(.65f,hits*SkillHit);
                 else if(!Has(eventText,"Ability Heal"))score-=.22f;
             }
 

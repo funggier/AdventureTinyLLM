@@ -10,7 +10,7 @@ def test_corner_deterministic_and_stochastic_actions_never_cross_world_bounds():
     corner = [False, True, False, True, False, True, False, False, False]
     for deterministic in (True, False):
         for _ in range(16):
-            req = {"agent_id": "corner-mask", "observation": [0.0] * 51,
+            req = {"agent_id": "corner-mask", "observation": [0.0] * 56,
                    "deterministic": deterministic, "valid_moves": corner}
             response = client.post("/act", json=req)
             assert response.status_code == 200, response.text
@@ -24,7 +24,7 @@ def test_corner_deterministic_and_stochastic_actions_never_cross_world_bounds():
 
 def test_invalid_mask_is_rejected_without_creating_history():
     client = TestClient(api.app)
-    req = {"agent_id":"bad-mask", "observation":[0.0]*51}
+    req = {"agent_id":"bad-mask", "observation":[0.0]*56}
     for mask in ([], [False]*9, [True]*8, [True]*10, [1]*9):
         response = client.post("/act", json={**req, "valid_moves":mask})
         assert response.status_code == 422
@@ -37,7 +37,7 @@ def test_masked_move_receives_on_policy_gradient_and_checkpoint(tmp_path, monkey
     monkeypatch.setattr(api, "ONLINE_OUTPUT", str(tmp_path / "masked.pt"))
     corner = [False, True, False, True, False, True, False, False, False]
     act = client.post("/act", json={"agent_id":"masked-credit",
-        "observation":[.1]*51,"valid_moves":corner,"deterministic":False}).json()
+        "observation":[.1]*56,"valid_moves":corner,"deterministic":False}).json()
     idx = api.DECISIONS["masked-credit"][act["action_id"]].heads[0]
     assert corner[idx]
     reward = client.post("/experience", json={"agent_id":"masked-credit",
@@ -53,7 +53,7 @@ def test_masked_move_receives_on_policy_gradient_and_checkpoint(tmp_path, monkey
 
 def test_old_clients_remain_compatible_without_mask():
     client = TestClient(api.app)
-    resp=client.post("/act",json={"agent_id":"legacy-moves","observation":[0.0]*51})
+    resp=client.post("/act",json={"agent_id":"legacy-moves","observation":[0.0]*56})
     assert resp.status_code==200
     assert api.DECISIONS["legacy-moves"][resp.json()["action_id"]].move_mask is None
     client.post("/reset",json={"agent_id":"legacy-moves"})
