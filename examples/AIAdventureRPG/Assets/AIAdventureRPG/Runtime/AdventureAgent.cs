@@ -136,9 +136,9 @@ namespace AIAdventureRPG
             // Awareness itself carries NO reward; it only interrupts a stale
             // finite travel so the current policy may reconsider the scene.
             if(mode==ControlMode.Manual||alert==null)return;
-            StopAIMovement("new perception");
+            StopAIMovement(alert.urgent?"imminent attack":"new perception");
             if(mode==ControlMode.Tiny)
-                GetComponent<AdventureTinyController>()?.ReconsiderForPerception();
+                GetComponent<AdventureTinyController>()?.ReconsiderForPerception(alert.urgent);
             else if(mode==ControlMode.Ollama)
                 Brain?.ReconsiderForPerception(alert);
         }

@@ -243,7 +243,8 @@ namespace AIAdventureRPG
                 var memory=actor.PerceptionMemory;
                 GUILayout.Space(5f);
                 GUILayout.Label("SPATIAL MEMORY  |  5 FIFO snapshots / coordinate",label);
-                GUILayout.Label("Reactive "+memory.AlertCount+" | Tracked "+memory.TrackedObjects+
+                GUILayout.Label("Reactive "+memory.AlertCount+" | Urgent "+
+                    memory.UrgentThreatAlerts+" | Tracked "+memory.TrackedObjects+
                     " | Cells "+memory.HistoryCellCount+
                     " | Rings "+memory.alertRadius.ToString("F0")+"/"+
                     memory.rearmRadius.ToString("F0")+" units",small);

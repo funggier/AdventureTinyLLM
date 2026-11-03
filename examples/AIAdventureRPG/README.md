@@ -1,6 +1,8 @@
-# AIAdventureRPG Unity Integration Example — v0.3.0 Spatial Memory
+# AIAdventureRPG Unity Integration Example — v0.3.1 Urgent Combat Reactive
 
-**Release v0.3.0 (2026-11-03):** This development snapshot adds `AdventurePerceptionMemory`, dual 9/18-unit perception hysteresis, persistent five-entry FIFO spatial map per coordinate, and reactive Tiny/Ollama re-planning when a genuinely new Monster/Herb/Thorn/resource/NPC enters the 9-unit range. Tiny now uses **56 numeric features** / `explicit-action-id-v6-spatial`; Ollama receives up to five coordinate snapshots for each prioritized visible or proximity-sensed coordinate at decision time. Successful normal hits earn +0.35 and skill hits +0.40 per target; the kill bonus remains +1.45. See `Docs/AIAdventureRPG/REACTIVE_PERCEPTION_AND_MAP_TH.md` and `docs/SPATIAL_MEMORY_TH.md` in the Tiny repository. The previous v0.2.0 release remains unchanged as a historical 51-feature snapshot; v0.3.0 is the 56-feature version.
+**v0.3.1 update:** A live hostile's new attack windup inside the 9-unit ring now forces an immediate (deduplicated) AI reconsideration without waiting for the ordinary discovery cooldown or the hostile exiting the 18-unit ring. This does not provide a reward or guarantee a successful dodge within 0.55 game seconds. Tiny observation remains 56 features, so compatible trained weights are preserved.
+
+**Release v0.3.0 baseline (2026-11-03):** This development snapshot adds `AdventurePerceptionMemory`, dual 9/18-unit perception hysteresis, persistent five-entry FIFO spatial map per coordinate, and reactive Tiny/Ollama re-planning when a genuinely new Monster/Herb/Thorn/resource/NPC enters the 9-unit range. Tiny now uses **56 numeric features** / `explicit-action-id-v6-spatial`; Ollama receives up to five coordinate snapshots for each prioritized visible or proximity-sensed coordinate at decision time. Successful normal hits earn +0.35 and skill hits +0.40 per target; the kill bonus remains +1.45. See `Docs/AIAdventureRPG/REACTIVE_PERCEPTION_AND_MAP_TH.md` and `docs/SPATIAL_MEMORY_TH.md` in the Tiny repository. The previous v0.2.0 release remains unchanged as a historical 51-feature snapshot; v0.3.0 is the 56-feature version.
 
 This directory is an **actual source snapshot of the AIAdventureRPG module tested in the Unity game through 2026-11-03**, not a mockup. It is included so developers can inspect and modify the whole observation → action → world effect → reward → policy update flow.
 
@@ -30,7 +32,7 @@ This directory is an **actual source snapshot of the AIAdventureRPG module teste
 5. Change `AdventureCombatState`: detection radius = 9 world units, combat-exit grace = 1.5 s, low HP = 20%, low MP = 20%. All four are configurable in the Inspector; reward calculation reads the thresholds from each event's pre-action snapshot.
 6. Watch the game HUD and Unity Console. In Manual mode use WASD, Shift sprint, **E normal attack or interact**, **F special attack (12 MP, 32 damage)**, **Q Arc Pulse (20 MP, 26 damage in a 5.3-unit radius)**, **R Heal (25 MP, +30 HP)**. Normal attack deals 14 damage and shows only small dust/sparks; skills use colored particles, temporary lights, and magic rings.
 7. In Ollama mode, **RESET OLLAMA CONTEXT** clears old action/prompt history, cancels pending calls and starts fresh while keeping game HP/MP and Tiny weights intact.
-8. Run Unity **EditMode → AIAdventureRPG.Tests**. Current qualification: **79/79 passed**. Python project runs `python -m pytest`.
+8. Run Unity **EditMode → AIAdventureRPG.Tests**. Current qualification: **81/81 passed**. Python project runs `python -m pytest`.
 
 ## Integrate into another Unity project
 

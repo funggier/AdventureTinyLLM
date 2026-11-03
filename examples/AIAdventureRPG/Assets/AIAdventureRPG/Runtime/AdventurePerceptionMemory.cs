@@ -27,6 +27,7 @@ namespace AIAdventureRPG
         [Range(64,4096)] public int maxRememberedCells=2048;
         [Min(1f)] public float autosaveGameSeconds=10f;
         public int AlertCount{get;private set;}
+        public int UrgentThreatAlerts{get;private set;}
         public int HistoryCellCount=>cells.Count;
         public int TrackedObjects=>tracks.Count;
         public float LastAlertAt{get;private set;}=-999f;
@@ -55,6 +56,8 @@ namespace AIAdventureRPG
             public string kind,name;
             public Vector3 position;
             public bool moved;
+            public bool urgent;
+            public string reason;
             public int previousAtCoordinate;
             public string history;
         }
@@ -69,6 +72,9 @@ namespace AIAdventureRPG
 
         readonly Dictionary<Vector2Int,Cell> cells=new Dictionary<Vector2Int,Cell>();
         readonly Dictionary<int,Track> tracks=new Dictionary<int,Track>();
+        // Attack windups are distinct urgent events. One alert per committed
+        // attack, even when the same monster stays inside the inner ring.
+        readonly Dictionary<int,float> seenWindupEnds=new Dictionary<int,float>();
         readonly List<PerceptionAlert> queued=new List<PerceptionAlert>();
         AdventureAgent actor;
         bool dirty,loaded;
@@ -298,6 +304,34 @@ namespace AIAdventureRPG
         public bool HasRecentAlert(float seconds=5f)=>
             LastAlert!=null&&Time.time-LastAlertAt<=seconds;
 
+        public void ObserveAttackWindup(AdventureMonster monster,float distance)
+        {
+            EnsureLoaded();
+            if(!loaded||monster==null||!monster.IsAlive||!monster.IsWindingUp||
+                distance>Mathf.Max(1f,alertRadius)||
+                Time.time>=monster.WindupEndsAt)return;
+            int id=monster.transform.GetEntityId().GetHashCode();
+            float previous;
+            if(seenWindupEnds.TryGetValue(id,out previous)&&
+                Mathf.Abs(previous-monster.WindupEndsAt)<.0001f)return;
+            seenWindupEnds[id]=monster.WindupEndsAt;
+
+            // Urgent attack signals must bypass ordinary discovery batching
+            // (.65s), otherwise a .55s windup may have already landed.
+            // Keep the world state unchanged; only request reconsideration.
+            queued.RemoveAll(a=>a.entityId==id);
+            var alert=new PerceptionAlert{
+                entityId=id,kind="Monster",name=monster.displayName,
+                reason="AttackWindup",urgent=true,
+                position=monster.transform.position,
+                history=DescribeHistoryAt(monster.transform.position)
+            };
+            LastAlert=alert;
+            LastAlertAt=Time.time;
+            AlertCount++;
+            UrgentThreatAlerts++;
+            ImportantChange?.Invoke(alert);
+        }
         public void ObserveProximityMonster(AdventureMonster monster,float distance)
         {
             if(monster==null||!monster.IsAlive)return;

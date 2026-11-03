@@ -116,11 +116,13 @@ namespace AIAdventureRPG
             current=default;
             nextDecision=Time.time;
             ReactiveReplans++;
-            Remember("New nearby "+alert.kind+" "+alert.name+
+            Remember((alert.urgent?"URGENT attack windup by ":"New nearby ")+
+                alert.kind+" "+alert.name+
                 " at x="+alert.position.x.ToString("F1")+
                 " z="+alert.position.z.ToString("F1")+
                 "; previous coordinate observations: "+alert.history);
-            Status="New object detected: refreshing Ollama context";
+            Status=alert.urgent?"URGENT: monster strike winding up":
+                "New object detected: refreshing Ollama context";
         }
         public void Tick(AdventureAgent actor)
         {

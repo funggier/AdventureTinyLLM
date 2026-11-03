@@ -25,6 +25,10 @@ This is **not a fork** of those projects and does not import their weights, corp
 5. **Reproducibility:** Explicit random seeds, clean training/evaluation partitions, checkpoint provenance, and objective metrics.
 6. **Swappable training:** Native PyTorch reinforcement learning first. ML-Agents will be an **optional adapter**, not a mandatory dependency.
 
+## v0.3.1 — Urgent monster attack awareness (2026-11-03)
+
+A monster already within the 9-unit combat ring now issues a distinct **AttackWindup** interrupt once per committed strike, even if it never exits the 18-unit re-arm ring. These urgent interrupts bypass ordinary new-object discovery cooldown, terminate old AI travel, cancel stale model requests and preserve no-reward observation semantics. Tiny avoids transmitting a stale /act if detection fires while building the current observation. The protocol remains **56 numeric features / explicit-action-id-v6-spatial**; the existing trained checkpoint stays compatible and does **not** need retraining. See [v0.3.1 release notes](docs/releases/v0.3.1.md).
+
 ## v0.3.0 — 56-feature reactive spatial memory (2026-11-03)
 
 Version v0.3.0 supports two-tier 9/18-unit perception hysteresis, early re-planning on a newly discovered Monster/Herb/Thorn/resource/NPC, and a persisted spatial coordinate map with five FIFO observations per cell. Ollama receives full history text for up to four visible or combat-sensed coordinates each decision; Tiny receives five additional numeric spatial-memory features, making 56 inputs and schema v5 / action protocol `explicit-action-id-v6-spatial`. The trained 51-input policy (17,469 updates) was archived separately before retraining the new model. Ordinary hit reward increased to +0.35 and skill hit to +0.40. See [Spatial Memory & Reactive Perception design](docs/SPATIAL_MEMORY_TH.md). The earlier **v0.2.0** release is preserved with its original 51-feature protocol; do not mix its Unity example and Python service with v0.3.0.
@@ -92,6 +96,7 @@ GET /health reports model training status and online updates; POST /act expects 
 
 - [Complete Reward Scoring Criteria & Worked Examples (Thai)](docs/REWARD_POLICY_TH.md)
 - [Unity gameplay integration reference with scene and tests](examples/AIAdventureRPG/README.md)
+- [v0.3.1 release notes](docs/releases/v0.3.1.md)
 - [v0.3.0 release notes](docs/releases/v0.3.0.md)
 - [Spatial Memory and Reactive Perception (Thai)](docs/SPATIAL_MEMORY_TH.md)
 - [v0.2.0 release notes](docs/releases/v0.2.0.md)
@@ -109,7 +114,7 @@ GET /health reports model training status and online updates; POST /act expects 
 - [Survival combat, food choices, monster encounters and readable signs (Thai/English)](docs/SURVIVAL_COMBAT_SIGN_TH.md)
 - [Survival combat, berries, and sign-reading reward rules](docs/SURVIVAL_COMBAT_SIGN_TH.md)
 
-v0.3.0 release assets: `AdventureTinyLLM-V0.3.0-Release.zip`, `AdventureTinyLLM-V0.3.0-Document.zip`, `AdventureTinyLLM-V0.3.0-Unity-Example.zip`, plus `SHA256SUMS.txt`. The original v0.2.0 archives and release remain unchanged. The `scripts/package_release.py` helper packages only the exact committed Git tree with deterministic ZIP member order/timestamps; trained weights, Windows settings, Unity Library, and unrelated City Builder files are excluded.
+v0.3.1 release assets: `AdventureTinyLLM-V0.3.1-Release.zip`, `AdventureTinyLLM-V0.3.1-Document.zip`, `AdventureTinyLLM-V0.3.1-Unity-Example.zip`, plus `SHA256SUMS.txt`. Earlier release assets remain unchanged. The original v0.2.0 archives and release remain unchanged. The `scripts/package_release.py` helper packages only the exact committed Git tree with deterministic ZIP member order/timestamps; trained weights, Windows settings, Unity Library, and unrelated City Builder files are excluded.
 
 ## License
 

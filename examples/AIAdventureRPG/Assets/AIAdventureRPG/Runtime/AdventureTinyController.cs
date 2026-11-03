@@ -508,7 +508,7 @@ namespace AIAdventureRPG
             resetting=false;
         }
         public int ReactiveReplans{get;private set;}
-        public void ReconsiderForPerception()
+        public void ReconsiderForPerception(bool urgent=false)
         {
             if(actor==null||actor.mode!=ControlMode.Tiny)return;
             // Discard stale in-flight policy responses and one-time action
@@ -518,7 +518,8 @@ namespace AIAdventureRPG
             LastActionId="";
             nextDecision=Time.time;
             ReactiveReplans++;
-            Status="New object detected: refreshing Tiny observation";
+            Status=urgent?"URGENT: monster strike winding up; refreshing policy":
+                "New object detected: refreshing Tiny observation";
         }
         public void Tick()
         {
@@ -681,6 +682,13 @@ namespace AIAdventureRPG
             InFlight=true;
             float startedReal=Time.realtimeSinceStartup;
             float[] values=Encode();
+            // Encoding can itself refresh combat sensors and discover a fresh
+            // attack windup; never submit an already superseded observation.
+            if(generation!=requestGeneration)
+            {
+                InFlight=false;
+                yield break;
+            }
             LastObservation="X="+values[0].ToString("F2")+" Z="+values[1].ToString("F2")+
                 " HP="+values[3].ToString("F2")+" MP="+values[4].ToString("F2")+
                 " combat="+values[43]+" lowHP="+values[44]+" lowMP="+values[45]+
@@ -725,7 +733,7 @@ namespace AIAdventureRPG
                            float.IsInfinity(r.move_x)||float.IsNaN(r.move_z)||float.IsInfinity(r.move_z)||
                            float.IsNaN(r.move_distance)||float.IsInfinity(r.move_distance)||
                            r.move_distance<0f||r.move_distance>12f)
-                            throw new Exception("Incompatible Tiny API v5 tactical action_id");
+                            throw new Exception("Incompatible Tiny API v6 spatial action_id");
                         DialogueAnswer answer=DialogueAnswer.None;
                         if(string.Equals(r.answer,"good",StringComparison.OrdinalIgnoreCase))answer=DialogueAnswer.Good;
                         if(string.Equals(r.answer,"bad",StringComparison.OrdinalIgnoreCase))answer=DialogueAnswer.Bad;

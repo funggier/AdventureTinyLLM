@@ -65,7 +65,7 @@ class Decision:
 
 
 DECISIONS: dict[str, OrderedDict[str, Decision]] = {}
-app = FastAPI(title="AdventureTinyLLM", version="0.3.0", description="Tiny Transformer with explicit action attribution")
+app = FastAPI(title="AdventureTinyLLM", version="0.3.1", description="Tiny Transformer with explicit action attribution")
 
 
 class ActRequest(BaseModel):

@@ -36,6 +36,99 @@ namespace AIAdventureRPG.Tests
         }
 
         [Test]
+        public void WindingAttackTriggersExactlyOncePerWindupWithoutDiscoveryCooldown()
+        {
+            GameObject go;var memory=Build(out go);
+            var monsterObject=new GameObject("Windup alert test monster");
+            try
+            {
+                var monster=monsterObject.AddComponent<AdventureMonster>();
+                monster.displayName="Threat test";
+                monsterObject.transform.position=new Vector3(2,0,0);
+                typeof(AdventureMonster).GetProperty("IsAlive",
+                    BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic)
+                    .SetValue(monster,true,null);
+                typeof(AdventureMonster).GetProperty("IsWindingUp",
+                    BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic)
+                    .SetValue(monster,true,null);
+                var windup=typeof(AdventureMonster).GetProperty("WindupEndsAt",
+                    BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic);
+                int callbacks=0;
+                AdventurePerceptionMemory.PerceptionAlert latest=null;
+                memory.ImportantChange+=alert=>{callbacks++;latest=alert;};
+                windup.SetValue(monster,Time.time+1f,null);
+
+                memory.ObserveAttackWindup(monster,2f);
+                memory.ObserveAttackWindup(monster,2f);
+                Assert.That(callbacks,Is.EqualTo(1));
+                Assert.That(memory.UrgentThreatAlerts,Is.EqualTo(1));
+                Assert.That(latest.urgent,Is.True);
+                Assert.That(latest.reason,Is.EqualTo("AttackWindup"));
+
+                // No ordinary .65-second discovery cooldown may block the
+                // next real attack when the monster never leaves the 9 ring.
+                windup.SetValue(monster,Time.time+2f,null);
+                memory.ObserveAttackWindup(monster,2f);
+                Assert.That(callbacks,Is.EqualTo(2));
+
+                windup.SetValue(monster,Time.time+3f,null);
+                memory.ObserveAttackWindup(monster,19f);
+                Assert.That(callbacks,Is.EqualTo(2),
+                    "A hidden/out-of-range monster cannot trigger an urgent alert.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(monsterObject);
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void WindingAttackReplansTinyWithoutRewardingOrTrainingForObservation()
+        {
+            GameObject go;var memory=Build(out go);
+            var monsterObject=new GameObject("Reactive attacker");
+            try
+            {
+                var actor=go.GetComponent<AdventureAgent>();
+                var stats=go.GetComponent<AdventureStats>();
+                var tiny=go.AddComponent<AdventureTinyController>();
+                typeof(AdventureTinyController).GetField("actor",Flags).SetValue(tiny,actor);
+                var callback=typeof(AdventureAgent).GetMethod("OnPerceptionAlert",Flags);
+                memory.ImportantChange+=(AdventurePerceptionMemory.PerceptionAlert alert)=>
+                    callback.Invoke(actor,new object[]{alert});
+                actor.mode=ControlMode.Tiny;
+
+                var monster=monsterObject.AddComponent<AdventureMonster>();
+                monsterObject.transform.position=new Vector3(3,0,0);
+                typeof(AdventureMonster).GetProperty("IsAlive",
+                    BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic)
+                    .SetValue(monster,true,null);
+                typeof(AdventureMonster).GetProperty("IsWindingUp",
+                    BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic)
+                    .SetValue(monster,true,null);
+                typeof(AdventureMonster).GetProperty("WindupEndsAt",
+                    BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic)
+                    .SetValue(monster,Time.time+1f,null);
+                var actionId=typeof(AdventureTinyController).GetField(
+                    "<LastActionId>k__BackingField",Flags);
+                actionId.SetValue(tiny,"old-one-time-credit-id");
+                string previous=stats.LastOutcome;
+                memory.ObserveAttackWindup(monster,3f);
+                Assert.That(tiny.ReactiveReplans,Is.EqualTo(1));
+                Assert.That(tiny.Status,Does.Contain("URGENT"));
+                Assert.That(tiny.LastActionId,Is.Empty);
+                Assert.That(stats.LastOutcome,Is.EqualTo(previous));
+                Assert.That(tiny.AcceptedOutcomes,Is.Zero);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(monsterObject);
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
         public void FiveSnapshotsPerCoordinateAreFIFO()
         {
             GameObject go;var memory=Build(out go);
